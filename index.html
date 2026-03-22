@@ -457,7 +457,7 @@
     <div class="kpi">
       <div class="kpi-label">AIS Positions</div>
       <div class="kpi-value kpi-gold">36,564</div>
-      <div class="kpi-sub">Position records ingested</div>
+      <div class="kpi-sub">Enriched · 708K raw messages</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">ETAs Tracked</div>
@@ -616,10 +616,10 @@
         </tr>
         <tr>
           <td class="mono">ais_infos</td>
-          <td class="mono">99</td>
-          <td>SOG, COG, nav status, flag</td>
-          <td>AIS meta</td>
-          <td><span class="pill pill-blue">Partial</span></td>
+          <td class="mono">708,302</td>
+          <td>SOG, COG, nav status, flag, messageType</td>
+          <td>Raw AIS messages (LAND + SHIPBORNE)</td>
+          <td><span class="pill pill-green">Active</span></td>
         </tr>
         <tr>
           <td class="mono">places</td>
@@ -642,7 +642,7 @@
   <div class="kpi-row">
     <div class="kpi">
       <div class="kpi-label">Total DWT Capacity</div>
-      <div class="kpi-value kpi-accent">1.7M</div>
+      <div class="kpi-value kpi-accent">1.6M</div>
       <div class="kpi-sub">Tonnes deadweight</div>
     </div>
     <div class="kpi">
@@ -883,19 +883,19 @@
 
   <div class="kpi-row">
     <div class="kpi">
-      <div class="kpi-label">Total AIS Records</div>
+      <div class="kpi-label">AIS Positions (Enriched)</div>
       <div class="kpi-value kpi-accent">36,564</div>
-      <div class="kpi-sub">Position signals ingested</div>
+      <div class="kpi-sub">ais_positions · with place/dest</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Avg Speed</div>
-      <div class="kpi-value kpi-gold">9.85 kn</div>
-      <div class="kpi-sub">Mean across all records</div>
+      <div class="kpi-label">Raw AIS Messages</div>
+      <div class="kpi-value kpi-gold">708,302</div>
+      <div class="kpi-sub">ais_infos · LAND + SHIPBORNE</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Normal Speed (7-12kn)</div>
       <div class="kpi-value kpi-green">53.9%</div>
-      <div class="kpi-sub">19,719 records</div>
+      <div class="kpi-sub">19,719 of 36,564 records</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Fast (12-16kn)</div>
@@ -918,7 +918,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title"><span>🚀</span> Speed Distribution</div>
-        <div class="card-badge badge-blue">36,564 records</div>
+        <div class="card-badge badge-blue">ais_positions · 36,564 records</div>
       </div>
       <canvas id="chartSpeedDist" height="240"></canvas>
     </div>
@@ -1006,7 +1006,7 @@
         <option value="starvega">Star Vega — Bulk Carrier</option>
         <option value="clluzhou">CL Luzhou — Bulk Carrier</option>
         <option value="clqingshui">CL Qingshui He — Bulk Carrier</option>
-        <option value="atlanticgem">Atlantic Gem — Bulk Carrier</option>
+        <option value="atlanticgem">Atlantic Gem — Crude Oil Tanker</option>
         <option value="seaways">Seaways Yellowstone — Bulk Carrier</option>
       </select>
       <div id="vesselBadge" class="card-badge badge-blue" style="margin-left:auto"></div>
@@ -1109,23 +1109,23 @@ const fleetData = [
   {name:'Aqualeader', imo:'9592238', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2011, dwt:115668, loa:248.97, draft:13.60},
   {name:'Java Sea', imo:'9783942', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2019, dwt:108411, loa:243.79, draft:14.81},
   {name:'Navios Magellan II', imo:'9876048', type:'bulk carrier', cat:'Panamax', flag:'PAN', built:2020, dwt:82037, loa:228.90, draft:14.52},
-  {name:'CL Qingshui He', imo:'9880295', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2020, dwt:80860, loa:228.90, draft:20.10},
+  {name:'CL Qingshui He', imo:'9880295', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2020, dwt:80860, loa:228.90, draft:14.10},
   {name:'Pacific Ruby', imo:'9893034', type:'crude oil tanker', cat:'Aframax LR2', flag:'MHL', built:2021, dwt:113306, loa:249.89, draft:15.22},
   {name:'Crystal Ocean', imo:'9897913', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2021, dwt:82252, loa:228.99, draft:14.58},
   {name:'Darya Heera', imo:'9909077', type:'bulk carrier', cat:'Panamax', flag:'HKG', built:2021, dwt:61083, loa:199.90, draft:13.00},
   {name:'Maye Manx', imo:'9931549', type:'bulk carrier', cat:'Panamax', flag:'IOM', built:2022, dwt:63525, loa:199.98, draft:13.30},
   {name:'Nave Polaris', imo:'9971719', type:'crude oil tanker', cat:'Aframax LR2', flag:'PAN', built:2024, dwt:115698, loa:249.90, draft:15.20},
   {name:'CL Luzhou', imo:'9943580', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2022, dwt:61256, loa:199.90, draft:13.00},
-  {name:'Star Vega', imo:'9520895', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2009, dwt:75000, loa:225.00, draft:13.50},
-  {name:'Shine Sapphire', imo:'1041374', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2021, dwt:82000, loa:230.00, draft:14.00},
-  {name:'Rizokarpaso', imo:'9975478', type:'bulk carrier', cat:'Panamax', flag:'CYP', built:2024, dwt:82000, loa:229.00, draft:14.00},
-  {name:'CL Hong Kong', imo:'9897001', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2021, dwt:110000, loa:248.00, draft:14.80},
-  {name:'Rodopi', imo:'1057191', type:'bulk carrier', cat:'Panamax', flag:'BRB', built:2006, dwt:75000, loa:225.00, draft:13.00},
-  {name:'Arctic', imo:'9122978', type:'supply', cat:'Supply Vessel', flag:'RUS', built:1996, dwt:4170, loa:80.00, draft:5.30},
-  {name:'Vanna', imo:'9705330', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2016, dwt:78000, loa:226.00, draft:13.80},
-  {name:'Ino Horizon', imo:'9759977', type:'bulk carrier', cat:'Panamax', flag:'PAN', built:2017, dwt:80000, loa:228.00, draft:14.00},
-  {name:'Nave Polaris B', imo:'9991666', type:'bulk carrier', cat:'Panamax', flag:'SGP', built:2025, dwt:82000, loa:229.00, draft:14.00},
-  {name:'Pacific Carrier', imo:'9726463', type:'chemical tanker', cat:'Chemical', flag:'LBR', built:2023, dwt:50000, loa:190.00, draft:12.00},
+  {name:'Defender', imo:'9949663', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2023, dwt:82680, loa:229.00, draft:14.60},
+  {name:'Rizokarpaso', imo:'9975478', type:'bulk carrier', cat:'Panamax', flag:'CYP', built:2023, dwt:81800, loa:229.00, draft:14.50},
+  {name:'Shine Sapphire', imo:'1041374', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2024, dwt:82000, loa:229.00, draft:14.00},
+  {name:'Atlantic Gem', imo:'1022469', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2025, dwt:114000, loa:249.00, draft:14.90},
+  {name:'Rodopi', imo:'1057191', type:'bulk carrier', cat:'Panamax', flag:'BRB', built:2025, dwt:63742, loa:200.00, draft:13.00},
+  {name:'Arctic', imo:'9122978', type:'supply', cat:'Offshore Supply', flag:'RUS', built:1996, dwt:4170, loa:80.00, draft:5.30},
+  {name:'MTM Shanghai', imo:'9345908', type:'chemical tanker', cat:'Small Chemical', flag:'SGP', built:2006, dwt:19885, loa:170.00, draft:10.50},
+  {name:'Momi Arrow', imo:'9385506', type:'bulk carrier', cat:'Supramax', flag:'PAN', built:2009, dwt:54204, loa:190.00, draft:12.50},
+  {name:'Seaways Yellowstone', imo:'9394947', type:'crude oil tanker', cat:'Aframax LR2', flag:'MHL', built:2009, dwt:112989, loa:248.97, draft:14.60},
+  {name:'Star Vega', imo:'9520895', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2011, dwt:98681, loa:234.98, draft:14.52},
 ];
 
 // Fleet table
@@ -1618,7 +1618,7 @@ const VESSEL_TRACKING = {
     ]
   },
   atlanticgem: {
-    name: 'Atlantic Gem', imo: '1041374', flag: 'LBR', type: 'Bulk Carrier', dwt: 82000,
+    name: 'Atlantic Gem', imo: '1022469', flag: 'LBR', type: 'Crude Oil Tanker', dwt: 114000,
     actualArrival: '2026-02-08T11:56:40',
     actualSailing: '2026-02-08T19:33:26',
     actualPlace: 'Vancouver / Burnaby',
