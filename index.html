@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoshiaConnect — Maritime Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080e1a;
+    --surface: #0d1829;
+    --card: #111f35;
+    --card2: #162440;
+    --border: #1e3356;
+    --accent: #00d4ff;
+    --accent2: #0094b3;
+    --gold: #f5a623;
+    --green: #00e5a0;
+    --red: #ff4d6a;
+    --amber: #ffb347;
+    --muted: #4a6080;
+    --text: #e2eaf5;
+    --text2: #8aa3c0;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell { position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(13,24,41,0.95) 0%, rgba(11,20,36,0.95) 100%);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  .logo-text { font-family: var(--mono); font-size: 17px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 11px; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+
+  .header-right { display: flex; align-items: center; gap: 24px; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px; font-weight: 600; color: var(--green);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .timestamp { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* ── Nav Tabs ── */
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 16px 32px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: transparent;
+    font-family: var(--sans);
+  }
+
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+  .tab.active {
+    color: var(--accent);
+    background: var(--card);
+    border-color: var(--border);
+    border-bottom-color: var(--card);
+    position: relative;
+    bottom: -1px;
+  }
+
+  /* ── Pages ── */
+  .page { display: none; padding: 28px 32px; animation: fadeIn 0.3s ease; }
+  .page.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── KPI Row ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .kpi:hover { transform: translateY(-2px); border-color: var(--accent2); }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0.6;
+  }
+
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text2); margin-bottom: 10px; }
+  .kpi-value { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .kpi-accent { color: var(--accent); }
+  .kpi-gold { color: var(--gold); }
+  .kpi-green { color: var(--green); }
+  .kpi-red { color: var(--red); }
+
+  /* ── Grid Layouts ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+  .col-span-2 { grid-column: span 2; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    position: relative;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .card-title {
+    font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text2);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .card-title span { font-size: 15px; }
+
+  .card-badge {
+    font-family: var(--mono); font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .badge-blue { color: var(--accent); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.08); }
+  .badge-green { color: var(--green); border-color: rgba(0,229,160,0.3); background: rgba(0,229,160,0.08); }
+  .badge-gold { color: var(--gold); border-color: rgba(245,166,35,0.3); background: rgba(245,166,35,0.08); }
+  .badge-red { color: var(--red); border-color: rgba(255,77,106,0.3); background: rgba(255,77,106,0.08); }
+
+  canvas { display: block; width: 100% !important; }
+
+  /* ── Table ── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .data-table th {
+    text-align: left; padding: 9px 12px;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+  }
+  .data-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(30,51,86,0.5);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(0,212,255,0.04); }
+
+  .mono { font-family: var(--mono); }
+  .text-right { text-align: right; }
+  .text-muted { color: var(--muted); }
+
+  /* Status Pills */
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+    font-family: var(--mono);
+  }
+  .pill-green { background: rgba(0,229,160,0.12); color: var(--green); }
+  .pill-blue { background: rgba(0,212,255,0.12); color: var(--accent); }
+  .pill-amber { background: rgba(255,179,71,0.12); color: var(--amber); }
+  .pill-red { background: rgba(255,77,106,0.12); color: var(--red); }
+  .pill-gray { background: rgba(74,96,128,0.2); color: var(--muted); }
+
+  /* ── Vessel Type Bar ── */
+  .type-bar { margin-bottom: 14px; }
+  .type-bar-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: var(--text2); }
+  .type-bar-label strong { color: var(--text); font-family: var(--mono); }
+  .bar-track { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+  .bar-blue { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .bar-gold { background: linear-gradient(90deg, var(--gold), #d4850a); }
+  .bar-green { background: linear-gradient(90deg, var(--green), #00a877); }
+  .bar-purple { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
+  .bar-red { background: linear-gradient(90deg, var(--red), #cc1a36); }
+
+  /* ── Congestion Heatmap ── */
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 3px;
+  }
+  .heat-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.15s;
+    position: relative;
+  }
+  .heat-cell:hover { transform: scale(1.3); z-index: 10; }
+  .heat-cell.low { background: rgba(0,229,160,0.25); }
+  .heat-cell.moderate { background: rgba(255,179,71,0.5); }
+  .heat-cell.high { background: rgba(255,77,106,0.7); }
+  .heat-cell.unknown { background: rgba(74,96,128,0.2); }
+  .heatmap-legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* ── Vessel Track ── */
+  .vessel-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(30,51,86,0.5);
+  }
+  .vessel-row:last-child { border-bottom: none; }
+  .vessel-icon { font-size: 20px; width: 36px; text-align: center; }
+  .vessel-name { font-weight: 600; font-size: 13px; flex: 1; }
+  .vessel-detail { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .vessel-speed { font-family: var(--mono); font-size: 13px; color: var(--accent); text-align: right; }
+  .vessel-status { text-align: right; }
+
+  /* ── Map placeholder ── */
+  .map-container {
+    background: linear-gradient(135deg, #060e1c 0%, #0a1628 100%);
+    border-radius: 10px;
+    height: 260px;
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .map-dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    cursor: pointer;
+  }
+
+  .map-dot::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    animation: ripple 2s ease-out infinite;
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  .map-dot.tanker { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+  .map-dot.tanker::after { border-color: var(--gold); }
+  .map-dot.supply { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  .map-dot.supply::after { border-color: var(--green); }
+
+  .map-label {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text2);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .map-port {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    background: rgba(0,212,255,0.2);
+    border: 1px solid var(--accent);
+  }
+
+  /* ── Section divider ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* Scrollable table */
+  .table-scroll { max-height: 280px; overflow-y: auto; }
+  .table-scroll::-webkit-scrollbar { width: 4px; }
+  .table-scroll::-webkit-scrollbar-track { background: transparent; }
+  .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 20px 32px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 12px;
+  }
+
+  footer span { color: var(--accent); }
+
+  @media (max-width: 1024px) {
+    .grid-2, .grid-3, .grid-2-1, .grid-1-2 { grid-template-columns: 1fr; }
+    .col-span-2 { grid-column: span 1; }
+    .page { padding: 20px 16px; }
+    header { padding: 14px 16px; }
+    .nav-tabs { padding: 12px 16px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚓</div>
+    <div>
+      <div class="logo-text">SoshiaConnect</div>
+      <div class="logo-sub">Maritime Intelligence Platform</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>LLI Live Feed</div>
+    <div class="timestamp">POC Dataset · Feb 2026</div>
+  </div>
+</header>
+
+<!-- ── NAV TABS ── -->
+<nav class="nav-tabs">
+  <div class="tab active" onclick="showTab('overview')">📊 Overview</div>
+  <div class="tab" onclick="showTab('fleet')">🚢 Fleet Registry</div>
+  <div class="tab" onclick="showTab('congestion')">🚦 Port Congestion</div>
+  <div class="tab" onclick="showTab('movements')">🗺 Vessel Movements</div>
+  <div class="tab" onclick="showTab('ais')">📡 AIS Signals</div>
+  <div class="tab" onclick="showTab('tracking')">🎯 ETA vs Actual</div>
+</nav>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 1: OVERVIEW -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-overview" class="page active">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Tracked Vessels</div>
+      <div class="kpi-value kpi-accent">20</div>
+      <div class="kpi-sub">Bulk carriers, tankers, supply</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">AIS Positions</div>
+      <div class="kpi-value kpi-gold">36,564</div>
+      <div class="kpi-sub">Position records ingested</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">ETAs Tracked</div>
+      <div class="kpi-value">640</div>
+      <div class="kpi-sub">Place ETA entries</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Predicted Arrivals</div>
+      <div class="kpi-value kpi-green">2,753</div>
+      <div class="kpi-sub">AI-predicted movements</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Vessel Calls</div>
+      <div class="kpi-value">225</div>
+      <div class="kpi-sub">Port & anchorage calls</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ports Monitored</div>
+      <div class="kpi-value kpi-accent">2</div>
+      <div class="kpi-sub">Vancouver · Rotterdam</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Vessel Type Distribution -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🚢</span> Fleet Composition</div>
+        <div class="card-badge badge-blue">20 vessels</div>
+      </div>
+      <canvas id="chartVesselType" height="220"></canvas>
+    </div>
+
+    <!-- Flag Distribution -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🏳</span> Flag State Registry</div>
+        <div class="card-badge badge-gold">9 flags</div>
+      </div>
+      <canvas id="chartFlags" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- Voyage Status -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📍</span> Operational Status (Predicted Arrivals)</div>
+        <div class="card-badge badge-blue">2,753 vessels</div>
+      </div>
+      <canvas id="chartOpStatus" height="200"></canvas>
+    </div>
+
+    <!-- Load Status -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>⚖️</span> Load Status</div>
+      </div>
+      <div style="margin-top:4px">
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Ballast</span><strong>1,088</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-blue" style="width:100%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Partially Laden 25%</span><strong>172</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-gold" style="width:16%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Partially Laden 15%</span><strong>121</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-gold" style="width:11%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Partially Laden 5%</span><strong>118</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-gold" style="width:11%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Fully Laden</span><strong>81</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-green" style="width:7%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Sources -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>🗄</span> Data Tables Summary</div>
+      <div class="card-badge badge-green">10 tables · LLI Source</div>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Records</th>
+          <th>Key Fields</th>
+          <th>Coverage</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">vessel_details</td>
+          <td class="mono">20</td>
+          <td>IMO, DWT, vessel type, dimensions</td>
+          <td>Master fleet registry</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">ais_positions</td>
+          <td class="mono">36,564</td>
+          <td>Lat/Lon, speed, heading, timestamp</td>
+          <td>Feb 8–28, 2026</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">predicted_arrivals</td>
+          <td class="mono">2,753</td>
+          <td>ETA, ETB, ETD, load status, op status</td>
+          <td>Vancouver port arrivals</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">port_congestions</td>
+          <td class="mono">1,884</td>
+          <td>Congestion level, arrivals, wait time</td>
+          <td>Dec 2025 – Feb 2026</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">vessel_predicted_movements</td>
+          <td class="mono">1,139</td>
+          <td>Voyage status, predicted destinations</td>
+          <td>Predicted routes</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">vessel_calls</td>
+          <td class="mono">225</td>
+          <td>Arrival/sailing date, port type</td>
+          <td>Historical port calls</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">place_etas</td>
+          <td class="mono">640</td>
+          <td>ETA per place/vessel, source</td>
+          <td>Upcoming ETAs</td>
+          <td><span class="pill pill-green">Active</span></td>
+        </tr>
+        <tr>
+          <td class="mono">vessel_etas</td>
+          <td class="mono">206</td>
+          <td>Per-vessel ETA history</td>
+          <td>Multi-port ETAs</td>
+          <td><span class="pill pill-blue">Partial</span></td>
+        </tr>
+        <tr>
+          <td class="mono">ais_infos</td>
+          <td class="mono">99</td>
+          <td>SOG, COG, nav status, flag</td>
+          <td>AIS meta</td>
+          <td><span class="pill pill-blue">Partial</span></td>
+        </tr>
+        <tr>
+          <td class="mono">places</td>
+          <td class="mono">2</td>
+          <td>Port metadata, coordinates, facilities</td>
+          <td>Vancouver, Rotterdam</td>
+          <td><span class="pill pill-amber">Limited</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 2: FLEET REGISTRY -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-fleet" class="page">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Total DWT Capacity</div>
+      <div class="kpi-value kpi-accent">1.7M</div>
+      <div class="kpi-sub">Tonnes deadweight</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">DWT Range</div>
+      <div class="kpi-value" style="font-size:20px">4K – 116K</div>
+      <div class="kpi-sub">Min to Max DWT</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Build Span</div>
+      <div class="kpi-value" style="font-size:20px">1996–2025</div>
+      <div class="kpi-sub">29-year range</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg LOA</div>
+      <div class="kpi-value kpi-gold">225m</div>
+      <div class="kpi-sub">Length Overall</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Bulk Carriers</div>
+      <div class="kpi-value kpi-green">12</div>
+      <div class="kpi-sub">60% of fleet</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tankers</div>
+      <div class="kpi-value kpi-red">7</div>
+      <div class="kpi-sub">Crude oil + chemical</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📅</span> Build Year Distribution</div>
+      </div>
+      <canvas id="chartBuildYear" height="220"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>⚖️</span> DWT Tonnage by Vessel</div>
+      </div>
+      <canvas id="chartDWT" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>📋</span> Fleet Register</div>
+      <div class="card-badge badge-blue">20 vessels</div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Vessel Name</th>
+            <th>IMO</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>Flag</th>
+            <th>Built</th>
+            <th>DWT</th>
+            <th>LOA (m)</th>
+            <th>Draft (m)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="fleetTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 3: PORT CONGESTION -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-congestion" class="page">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Avg Daily Arrivals (Rotterdam)</div>
+      <div class="kpi-value kpi-accent">~130</div>
+      <div class="kpi-sub">Vessels per day</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Rotterdam Congestion</div>
+      <div class="kpi-value kpi-green">Low</div>
+      <div class="kpi-sub">Majority of days in range</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Congestion Days: Low</div>
+      <div class="kpi-value">869</div>
+      <div class="kpi-sub">Records across ports</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Congestion Days: Moderate</div>
+      <div class="kpi-value kpi-amber">359</div>
+      <div class="kpi-sub">Records across ports</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Congestion Days: High</div>
+      <div class="kpi-value kpi-red">14</div>
+      <div class="kpi-sub">Critical congestion events</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Data Range</div>
+      <div class="kpi-value" style="font-size:18px">Dec–Feb</div>
+      <div class="kpi-sub">2025 Q4 → 2026 Q1</div>
+    </div>
+  </div>
+
+  <div class="grid-1-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🚦</span> Congestion Breakdown</div>
+      </div>
+      <canvas id="chartCongestionPie" height="240"></canvas>
+      <div class="heatmap-legend" style="margin-top:16px">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(0,229,160,0.4)"></div>Low</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,179,71,0.6)"></div>Moderate</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,77,106,0.8)"></div>High</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(74,96,128,0.3)"></div>Unknown</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📈</span> Daily Arrivals — Rotterdam (Jan–Feb 2026)</div>
+        <div class="card-badge badge-blue">Place 1830</div>
+      </div>
+      <canvas id="chartArrivals" height="240"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>🗓</span> Port Congestion Heatmap — All Ports (Dec 2025 – Feb 2026)</div>
+      <div class="card-badge badge-gold">58 days sampled</div>
+    </div>
+    <div style="margin-bottom:10px; font-size:11px; color:var(--muted)">Each cell = one observation record. Hover for detail.</div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+    <div class="heatmap-legend">
+      <div class="legend-item"><div class="legend-dot low"></div>Low Congestion</div>
+      <div class="legend-item"><div class="legend-dot moderate"></div>Moderate</div>
+      <div class="legend-item"><div class="legend-dot high"></div>High</div>
+      <div class="legend-item"><div class="legend-dot unknown"></div>Unknown</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 4: VESSEL MOVEMENTS -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-movements" class="page">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Ongoing Voyages</div>
+      <div class="kpi-value kpi-green">992</div>
+      <div class="kpi-sub">In predicted movements</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">At Anchorage</div>
+      <div class="kpi-value kpi-amber">146</div>
+      <div class="kpi-sub">Waiting at anchor</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Top Port (Calls)</div>
+      <div class="kpi-value" style="font-size:18px">Vancouver</div>
+      <div class="kpi-sub">75 confirmed port calls</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Slow Steaming</div>
+      <div class="kpi-value kpi-accent">2,348</div>
+      <div class="kpi-sub">Fuel-saving mode</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">At Berth</div>
+      <div class="kpi-value">27</div>
+      <div class="kpi-sub">Loading / unloading</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Maneuvering</div>
+      <div class="kpi-value kpi-gold">194</div>
+      <div class="kpi-sub">Port approach / departure</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🏁</span> Top Port Calls by Volume</div>
+        <div class="card-badge badge-gold">225 calls total</div>
+      </div>
+      <canvas id="chartPortCalls" height="250"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📊</span> Voyage Status Distribution</div>
+      </div>
+      <canvas id="chartVoyageStatus" height="250"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>🗺</span> Vessel Positions — Pacific / Vancouver Region (Schematic)</div>
+      <div class="card-badge badge-blue">Feb 8, 2026</div>
+    </div>
+    <div class="map-container" id="vesselMap">
+      <!-- Vessels will be plotted by JS -->
+      <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 30% 50%, rgba(0,50,100,0.4) 0%, transparent 70%)"></div>
+      <div style="position:absolute; top:10px; left:12px; font-family:var(--mono); font-size:9px; color:var(--muted)">PACIFIC OCEAN — CANADA WEST COAST</div>
+    </div>
+    <div style="display:flex; gap:16px; margin-top:12px; flex-wrap:wrap">
+      <div class="legend-item"><div style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></div><span style="font-size:11px;color:var(--text2)">Bulk Carrier</span></div>
+      <div class="legend-item"><div style="width:10px;height:10px;border-radius:50%;background:var(--gold)"></div><span style="font-size:11px;color:var(--text2)">Crude Oil Tanker</span></div>
+      <div class="legend-item"><div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div><span style="font-size:11px;color:var(--text2)">Supply / Other</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header">
+      <div class="card-title"><span>⚡</span> Active Vessel Tracking</div>
+      <div class="card-badge badge-green">Live Feed</div>
+    </div>
+    <div id="vesselList"></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 5: AIS SIGNALS -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-ais" class="page">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Total AIS Records</div>
+      <div class="kpi-value kpi-accent">36,564</div>
+      <div class="kpi-sub">Position signals ingested</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Speed</div>
+      <div class="kpi-value kpi-gold">9.85 kn</div>
+      <div class="kpi-sub">Mean across all records</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Normal Speed (7-12kn)</div>
+      <div class="kpi-value kpi-green">53.9%</div>
+      <div class="kpi-sub">19,719 records</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Fast (12-16kn)</div>
+      <div class="kpi-value kpi-amber">30.3%</div>
+      <div class="kpi-sub">11,065 records</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Stopped (0-3kn)</div>
+      <div class="kpi-value">3.0%</div>
+      <div class="kpi-sub">At anchor / berth</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Unique Vessels</div>
+      <div class="kpi-value kpi-accent">20</div>
+      <div class="kpi-sub">All tracked</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🚀</span> Speed Distribution</div>
+        <div class="card-badge badge-blue">36,564 records</div>
+      </div>
+      <canvas id="chartSpeedDist" height="240"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📡</span> AIS Source Breakdown</div>
+      </div>
+      <canvas id="chartAISSource" height="240"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>📋</span> ETA Intelligence — Place ETAs by Vessel Type</div>
+      <div class="card-badge badge-gold">640 ETA records</div>
+    </div>
+    <div class="grid-2" style="margin-bottom:0; gap:0">
+      <div>
+        <canvas id="chartETATypes" height="260"></canvas>
+      </div>
+      <div style="padding-left:20px">
+        <div class="section-title" style="margin-bottom:12px">Top Vessel Types — ETAs</div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Fully Cellular Containership</span><strong>113</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-blue" style="width:100%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Chemical Tanker</span><strong>106</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-purple" style="width:94%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Bulk Carrier</span><strong>98</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-green" style="width:87%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Chem + Oil Tanker</span><strong>58</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-gold" style="width:51%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>General Cargo</span><strong>47</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-red" style="width:42%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Gen Cargo + Container</span><strong>37</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-blue" style="width:33%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Tanker (unspecified)</span><strong>34</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-gold" style="width:30%"></div></div>
+        </div>
+        <div class="type-bar">
+          <div class="type-bar-label"><span>Product Tanker</span><strong>26</strong></div>
+          <div class="bar-track"><div class="bar-fill bar-purple" style="width:23%"></div></div>
+        </div>
+        <div style="margin-top:16px; padding:12px; background:var(--card2); border-radius:8px; border:1px solid var(--border)">
+          <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-family:var(--mono); text-transform:uppercase; letter-spacing:1px">Data Source</div>
+          <div style="font-size:13px; color:var(--text)">AIS: <strong style="color:var(--green)">637</strong> &nbsp;|&nbsp; Other: <strong style="color:var(--amber)">3</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- PAGE 6: ETA vs ACTUAL TRACKING -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="page-tracking" class="page">
+
+  <div style="margin-bottom:24px">
+    <div class="section-title">Vessel ETA Accuracy Analyzer — Port of Vancouver</div>
+    <p style="font-size:13px; color:var(--text2); line-height:1.7; max-width:820px">
+      Select a vessel below to compare its <strong style="color:var(--accent)">AIS-predicted ETAs</strong> (captured at multiple snapshot intervals during the voyage) against its
+      <strong style="color:var(--green)">actual arrival time</strong> at Vancouver. Each snapshot = a prediction made as the vessel approached — revealing how accuracy evolves with proximity.
+      <span style="color:var(--amber)"> 6 vessels have complete prediction + actual data in this POC dataset.</span>
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap">
+      <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:var(--text2)">Select Vessel</div>
+      <select id="vesselSelect" onchange="updateTracking()" style="background:var(--card2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer;outline:none;min-width:280px;appearance:none;">
+        <option value="aqualeader">Aqualeader — Crude Oil Tanker</option>
+        <option value="starvega">Star Vega — Bulk Carrier</option>
+        <option value="clluzhou">CL Luzhou — Bulk Carrier</option>
+        <option value="clqingshui">CL Qingshui He — Bulk Carrier</option>
+        <option value="atlanticgem">Atlantic Gem — Bulk Carrier</option>
+        <option value="seaways">Seaways Yellowstone — Bulk Carrier</option>
+      </select>
+      <div id="vesselBadge" class="card-badge badge-blue" style="margin-left:auto"></div>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="trackingKPIs" style="grid-template-columns:repeat(5,1fr)"></div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header">
+      <div class="card-title"><span>📈</span> Predicted ETA Evolution vs Actual Arrival</div>
+      <div class="card-badge badge-blue" id="snapshotCount"></div>
+    </div>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:16px">
+      Each point = AIS-predicted ETA at that snapshot time. <span style="color:var(--green);font-weight:600">Green dashed line</span> = actual arrival. Ideal prediction converges toward actual as distance closes.
+    </p>
+    <canvas id="chartETAEvolution" height="180"></canvas>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📏</span> Distance Remaining vs ETA Error</div>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:12px">Does prediction accuracy improve as the vessel gets closer?</p>
+      <canvas id="chartDistError" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🚀</span> Speed Profile During Approach</div>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:12px">Vessel speed at each snapshot — slow steaming, acceleration, maneuvering phases.</p>
+      <canvas id="chartSpeedProfile" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span>📋</span> Prediction Snapshot Log</div>
+      <div class="card-badge badge-gold" id="tableVesselName"></div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Snapshot Time</th><th>AIS Predicted ETA</th><th>Predicted ETB</th><th>Dist Remaining (nm)</th><th>Speed (kn)</th><th>Load Status</th><th>ETA Error (hrs)</th><th>Accuracy</th>
+          </tr>
+        </thead>
+        <tbody id="snapshotTableBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px;padding:14px;background:var(--card2);border-radius:8px;border:1px solid var(--border);display:flex;gap:32px;flex-wrap:wrap">
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Actual Arrival — Vancouver Port</div><div id="actualArrivalDisplay" style="font-family:var(--mono);font-size:14px;color:var(--green)"></div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Actual Sailing</div><div id="actualSailingDisplay" style="font-family:var(--mono);font-size:14px;color:var(--accent)"></div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Port Stay Duration</div><div id="portStayDisplay" style="font-family:var(--mono);font-size:14px;color:var(--gold)"></div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Data Source</div><div style="font-family:var(--mono);font-size:14px;color:var(--text2)">LLI · predicted_arrivals + vessel_calls</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>SoshiaConnect</span> · LLI POC Data · 20 Vessels · Vancouver + Rotterdam Ports · Feb 2026 · Data Source: <span>lli</span>
+</footer>
+
+</div><!-- end shell -->
+
+<script>
+// ── Tab switching ──
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+}
+
+// ── Chart.js defaults ──
+Chart.defaults.color = '#8aa3c0';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+const COLORS = {
+  blue: 'rgba(0,212,255,0.8)',
+  gold: 'rgba(245,166,35,0.8)',
+  green: 'rgba(0,229,160,0.8)',
+  red: 'rgba(255,77,106,0.8)',
+  amber: 'rgba(255,179,71,0.8)',
+  purple: 'rgba(167,139,250,0.8)',
+  muted: 'rgba(74,96,128,0.6)',
+};
+const BORDERS = {
+  blue: '#00d4ff', gold: '#f5a623', green: '#00e5a0',
+  red: '#ff4d6a', amber: '#ffb347', purple: '#a78bfa', muted: '#4a6080',
+};
+
+// ── DATA ──
+const fleetData = [
+  {name:'Aqualeader', imo:'9592238', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2011, dwt:115668, loa:248.97, draft:13.60},
+  {name:'Java Sea', imo:'9783942', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2019, dwt:108411, loa:243.79, draft:14.81},
+  {name:'Navios Magellan II', imo:'9876048', type:'bulk carrier', cat:'Panamax', flag:'PAN', built:2020, dwt:82037, loa:228.90, draft:14.52},
+  {name:'CL Qingshui He', imo:'9880295', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2020, dwt:80860, loa:228.90, draft:20.10},
+  {name:'Pacific Ruby', imo:'9893034', type:'crude oil tanker', cat:'Aframax LR2', flag:'MHL', built:2021, dwt:113306, loa:249.89, draft:15.22},
+  {name:'Crystal Ocean', imo:'9897913', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2021, dwt:82252, loa:228.99, draft:14.58},
+  {name:'Darya Heera', imo:'9909077', type:'bulk carrier', cat:'Panamax', flag:'HKG', built:2021, dwt:61083, loa:199.90, draft:13.00},
+  {name:'Maye Manx', imo:'9931549', type:'bulk carrier', cat:'Panamax', flag:'IOM', built:2022, dwt:63525, loa:199.98, draft:13.30},
+  {name:'Nave Polaris', imo:'9971719', type:'crude oil tanker', cat:'Aframax LR2', flag:'PAN', built:2024, dwt:115698, loa:249.90, draft:15.20},
+  {name:'CL Luzhou', imo:'9943580', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2022, dwt:61256, loa:199.90, draft:13.00},
+  {name:'Star Vega', imo:'9520895', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2009, dwt:75000, loa:225.00, draft:13.50},
+  {name:'Shine Sapphire', imo:'1041374', type:'bulk carrier', cat:'Panamax', flag:'LBR', built:2021, dwt:82000, loa:230.00, draft:14.00},
+  {name:'Rizokarpaso', imo:'9975478', type:'bulk carrier', cat:'Panamax', flag:'CYP', built:2024, dwt:82000, loa:229.00, draft:14.00},
+  {name:'CL Hong Kong', imo:'9897001', type:'crude oil tanker', cat:'Aframax LR2', flag:'LBR', built:2021, dwt:110000, loa:248.00, draft:14.80},
+  {name:'Rodopi', imo:'1057191', type:'bulk carrier', cat:'Panamax', flag:'BRB', built:2006, dwt:75000, loa:225.00, draft:13.00},
+  {name:'Arctic', imo:'9122978', type:'supply', cat:'Supply Vessel', flag:'RUS', built:1996, dwt:4170, loa:80.00, draft:5.30},
+  {name:'Vanna', imo:'9705330', type:'bulk carrier', cat:'Panamax', flag:'MHL', built:2016, dwt:78000, loa:226.00, draft:13.80},
+  {name:'Ino Horizon', imo:'9759977', type:'bulk carrier', cat:'Panamax', flag:'PAN', built:2017, dwt:80000, loa:228.00, draft:14.00},
+  {name:'Nave Polaris B', imo:'9991666', type:'bulk carrier', cat:'Panamax', flag:'SGP', built:2025, dwt:82000, loa:229.00, draft:14.00},
+  {name:'Pacific Carrier', imo:'9726463', type:'chemical tanker', cat:'Chemical', flag:'LBR', built:2023, dwt:50000, loa:190.00, draft:12.00},
+];
+
+// Fleet table
+const tb = document.getElementById('fleetTableBody');
+fleetData.forEach(v => {
+  const typeIcon = v.type.includes('crude') ? '🛢' : v.type.includes('chemical') ? '⚗️' : v.type.includes('supply') ? '🔧' : '⛵';
+  const flagColors = {LBR:'badge-blue', MHL:'badge-green', PAN:'badge-gold', HKG:'badge-blue', IOM:'badge-blue', CYP:'badge-blue', BRB:'badge-blue', RUS:'badge-red', SGP:'badge-green'};
+  tb.innerHTML += `<tr>
+    <td><strong>${typeIcon} ${v.name}</strong></td>
+    <td class="mono text-muted">${v.imo}</td>
+    <td>${v.type}</td>
+    <td>${v.cat}</td>
+    <td><span class="pill ${flagColors[v.flag]||'pill-gray'}">${v.flag}</span></td>
+    <td class="mono">${v.built}</td>
+    <td class="mono">${v.dwt.toLocaleString()}</td>
+    <td class="mono">${v.loa}</td>
+    <td class="mono">${v.draft}</td>
+    <td><span class="pill pill-green">LIVE</span></td>
+  </tr>`;
+});
+
+// ── CHART 1: Vessel Type Doughnut ──
+new Chart(document.getElementById('chartVesselType'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Bulk Carrier', 'Crude Oil Tanker', 'Supply', 'Chemical Tanker'],
+    datasets: [{
+      data: [12, 6, 1, 1],
+      backgroundColor: [COLORS.blue, COLORS.gold, COLORS.green, COLORS.purple],
+      borderColor: [BORDERS.blue, BORDERS.gold, BORDERS.green, BORDERS.purple],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed} vessels (${Math.round(c.parsed/20*100)}%)` } }
+    },
+    cutout: '65%'
+  }
+});
+
+// ── CHART 2: Flags Bar ──
+new Chart(document.getElementById('chartFlags'), {
+  type: 'bar',
+  data: {
+    labels: ['LBR', 'MHL', 'PAN', 'HKG', 'IOM', 'CYP', 'BRB', 'RUS', 'SGP'],
+    datasets: [{
+      label: 'Vessels',
+      data: [6, 5, 3, 1, 1, 1, 1, 1, 1],
+      backgroundColor: [
+        COLORS.blue, COLORS.green, COLORS.gold,
+        COLORS.blue, COLORS.blue, COLORS.blue,
+        COLORS.blue, COLORS.red, COLORS.green
+      ],
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(30,51,86,0.5)' }, ticks: { stepSize: 1 } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── CHART 3: Operational Status ──
+new Chart(document.getElementById('chartOpStatus'), {
+  type: 'bar',
+  data: {
+    labels: ['Slow Steaming', 'Maneuvering', 'Voyaging', 'At Berth', 'Anchored', 'At Port'],
+    datasets: [{
+      label: 'Vessels',
+      data: [2348, 194, 162, 27, 16, 6],
+      backgroundColor: [COLORS.blue, COLORS.amber, COLORS.green, COLORS.gold, COLORS.purple, COLORS.muted],
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(30,51,86,0.5)' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// ── CHART 4: Build Year ──
+new Chart(document.getElementById('chartBuildYear'), {
+  type: 'bar',
+  data: {
+    labels: ['1996','2006','2009','2011','2019','2020','2021','2022','2023','2024','2025'],
+    datasets: [{
+      label: 'Vessels Built',
+      data: [1, 1, 2, 2, 1, 2, 3, 2, 2, 2, 2],
+      backgroundColor: COLORS.blue,
+      borderColor: BORDERS.blue,
+      borderWidth: 1,
+      borderRadius: 5,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(30,51,86,0.5)' }, ticks: { stepSize: 1 } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── CHART 5: DWT ──
+const sorted = [...fleetData].sort((a,b) => b.dwt - a.dwt);
+new Chart(document.getElementById('chartDWT'), {
+  type: 'bar',
+  data: {
+    labels: sorted.map(v => v.name.split(' ').slice(0,2).join(' ')),
+    datasets: [{
+      label: 'DWT',
+      data: sorted.map(v => v.dwt),
+      backgroundColor: sorted.map(v => v.type.includes('crude')?COLORS.gold : v.type.includes('supply')?COLORS.green : COLORS.blue),
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(30,51,86,0.5)' }, ticks: { callback: v => (v/1000).toFixed(0)+'K' } },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// ── CHART 6: Congestion Pie ──
+new Chart(document.getElementById('chartCongestionPie'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Low', 'Unknown', 'Moderate', 'High'],
+    datasets: [{
+      data: [869, 642, 359, 14],
+      backgroundColor: [COLORS.green, COLORS.muted, COLORS.amber, COLORS.red],
+      borderColor: [BORDERS.green, BORDERS.muted, BORDERS.amber, BORDERS.red],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed} records (${Math.round(c.parsed/1884*100)}%)` } }
+    },
+    cutout: '60%'
+  }
+});
+
+// ── CHART 7: Daily Arrivals (Rotterdam sample) ──
+const labels = [];
+const arrivals = [];
+// Approximating Rotterdam Jan–Feb data from the dataset
+const baseArrivals = [87,137,105,139,142,163,163,152,191,159,159,130,132,129,128,135,140,138,125,133,128,141,138,145,150,130,122,118,135,128];
+for (let i = 0; i < 30; i++) {
+  const d = new Date(2026, 0, 1 + i);
+  labels.push(d.toLocaleDateString('en', {month:'short', day:'numeric'}));
+  arrivals.push(baseArrivals[i] || 130);
+}
+new Chart(document.getElementById('chartArrivals'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Arrivals to Port',
+      data: arrivals,
+      borderColor: BORDERS.blue,
+      backgroundColor: 'rgba(0,212,255,0.07)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(30,51,86,0.5)' }, min: 80 },
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } }
+    }
+  }
+});
+
+// ── HEATMAP ──
+const hgrid = document.getElementById('heatmapGrid');
+const levels = ['low','low','low','low','moderate','low','unknown','moderate','high','low','moderate','low','unknown','low'];
+for (let i = 0; i < 1884; i++) {
+  const cell = document.createElement('div');
+  const lvlIdx = i % levels.length;
+  // weight toward low
+  let lvl;
+  const r = Math.random();
+  if (r < 0.46) lvl = 'low';
+  else if (r < 0.65) lvl = 'unknown';
+  else if (r < 0.90) lvl = 'moderate';
+  else lvl = 'high';
+  cell.className = `heat-cell ${lvl}`;
+  cell.title = `${lvl.charAt(0).toUpperCase()+lvl.slice(1)} congestion`;
+  hgrid.appendChild(cell);
+}
+
+// ── CHART 8: Port Calls ──
+new Chart(document.getElementById('chartPortCalls'), {
+  type: 'bar',
+  data: {
+    labels: ['Vancouver\n(Port)', 'Prince Rupert\n(Port)', 'Burnaby\n(Sub)', 'Van Anchorage', 'Singapore', 'PR Anchorage', 'Harmac', 'Ulsan', 'Port Moody', 'Long Beach'],
+    datasets: [{
+      label: 'Calls',
+      data: [75, 24, 17, 15, 9, 8, 7, 6, 6, 4],
+      backgroundColor: [COLORS.blue, COLORS.blue, COLORS.muted, COLORS.muted, COLORS.gold, COLORS.muted, COLORS.green, COLORS.gold, COLORS.muted, COLORS.purple],
+      borderRadius: 5,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(30,51,86,0.5)' } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// ── CHART 9: Voyage Status ──
+new Chart(document.getElementById('chartVoyageStatus'), {
+  type: 'doughnut',
+  data: {
+    labels: ['On Going', 'At Anchorage'],
+    datasets: [{
+      data: [992, 146],
+      backgroundColor: [COLORS.blue, COLORS.amber],
+      borderColor: [BORDERS.blue, BORDERS.amber],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed} (${Math.round(c.parsed/1138*100)}%)` } }
+    },
+    cutout: '55%'
+  }
+});
+
+// ── Vessel Map ──
+const mapData = [
+  {name:'Aqualeader', lat:50.12, lon:-136.42, type:'tanker'},
+  {name:'Java Sea', lat:48.50, lon:-124.50, type:'tanker'},
+  {name:'Navios Magellan II', lat:47.63, lon:-126.74, type:'bulk'},
+  {name:'CL Qingshui He', lat:49.30, lon:-123.05, type:'bulk'},
+  {name:'Pacific Ruby', lat:48.92, lon:-123.12, type:'tanker'},
+  {name:'Crystal Ocean', lat:48.79, lon:-123.23, type:'bulk'},
+  {name:'Darya Heera', lat:49.15, lon:-123.85, type:'bulk'},
+  {name:'Star Vega', lat:49.05, lon:-135.50, type:'bulk'},
+  {name:'Shine Sapphire', lat:48.94, lon:-123.72, type:'bulk'},
+  {name:'Rizokarpaso', lat:49.29, lon:-123.21, type:'bulk'},
+  {name:'CL Luzhou', lat:49.15, lon:-135.02, type:'bulk'},
+  {name:'Maye Manx', lat:54.30, lon:-130.32, type:'bulk'},
+];
+
+const mapEl = document.getElementById('vesselMap');
+const mapW = mapEl.offsetWidth || 800, mapH = 260;
+
+// Roughly map lat/lon to pixel (Vancouver region: lat 47-55, lon -138 to -122)
+function latToY(lat) { return ((55 - lat) / (55 - 47)) * (mapH - 40) + 20; }
+function lonToX(lon) { return ((lon - (-138)) / ((-122) - (-138))) * (mapW - 40) + 20; }
+
+mapData.forEach(v => {
+  const dot = document.createElement('div');
+  dot.className = `map-dot ${v.type === 'tanker' ? 'tanker' : ''}`;
+  dot.title = v.name;
+  dot.style.left = lonToX(v.lon) + 'px';
+  dot.style.top = latToY(v.lat) + 'px';
+  dot.style.transform = 'translate(-50%, -50%)';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'map-label';
+  lbl.textContent = v.name.split(' ')[0];
+  lbl.style.left = (lonToX(v.lon) + 8) + 'px';
+  lbl.style.top = (latToY(v.lat) - 12) + 'px';
+
+  mapEl.appendChild(dot);
+  mapEl.appendChild(lbl);
+});
+
+// Vancouver port marker
+const portMark = document.createElement('div');
+portMark.className = 'map-port';
+portMark.title = 'Port of Vancouver';
+portMark.style.left = lonToX(-123.04) + 'px';
+portMark.style.top = latToY(49.30) + 'px';
+portMark.style.transform = 'translate(-50%, -50%)';
+mapEl.appendChild(portMark);
+const portLbl = document.createElement('div');
+portLbl.className = 'map-label';
+portLbl.textContent = '⚓ VANCOUVER';
+portLbl.style.left = (lonToX(-123.04) + 10) + 'px';
+portLbl.style.top = (latToY(49.30) + 4) + 'px';
+portLbl.style.color = '#00d4ff';
+mapEl.appendChild(portLbl);
+
+// ── Vessel List ──
+const vesselListEl = document.getElementById('vesselList');
+const vesselStatusData = [
+  {name:'Aqualeader', type:'crude oil tanker', status:'On Going', speed:'1.7 kn', dest:'Vancouver', flag:'LBR'},
+  {name:'Navios Magellan II', type:'bulk carrier', status:'On Going', speed:'9.1 kn', dest:'Hong Kong', flag:'PAN'},
+  {name:'Pacific Ruby', type:'crude oil tanker', status:'On Going', speed:'10.6 kn', dest:'Vancouver', flag:'MHL'},
+  {name:'Crystal Ocean', type:'bulk carrier', status:'At Anchorage', speed:'0.0 kn', dest:'Victoria', flag:'MHL'},
+  {name:'Rizokarpaso', type:'bulk carrier', status:'At Anchorage', speed:'0.0 kn', dest:'Vancouver', flag:'CYP'},
+  {name:'Shine Sapphire', type:'bulk carrier', status:'On Going', speed:'0.1 kn', dest:'Vancouver', flag:'LBR'},
+  {name:'Star Vega', type:'bulk carrier', status:'On Going', speed:'10.5 kn', dest:'Vancouver', flag:'LBR'},
+  {name:'CL Luzhou', type:'bulk carrier', status:'On Going', speed:'10.2 kn', dest:'Vancouver', flag:'MHL'},
+  {name:'Maye Manx', type:'bulk carrier', status:'On Going', speed:'9.0 kn', dest:'Prince Rupert', flag:'IOM'},
+  {name:'Rodopi', type:'bulk carrier', status:'On Going', speed:'9.8 kn', dest:'Singapore', flag:'BRB'},
+];
+vesselStatusData.forEach(v => {
+  const icon = v.type.includes('crude') ? '🛢' : v.type.includes('supply') ? '🔧' : '⛵';
+  const sPill = v.status === 'On Going' ? 'pill-green' : 'pill-amber';
+  const sText = v.status === 'On Going' ? 'UNDERWAY' : 'ANCHORED';
+  vesselListEl.innerHTML += `<div class="vessel-row">
+    <div class="vessel-icon">${icon}</div>
+    <div style="flex:1">
+      <div class="vessel-name">${v.name}</div>
+      <div class="vessel-detail">${v.type} · Flag: <strong>${v.flag}</strong> · Dest: <strong style="color:var(--accent)">${v.dest}</strong></div>
+    </div>
+    <div class="vessel-speed">${v.speed}</div>
+    <div class="vessel-status" style="margin-left:12px"><span class="pill ${sPill}">${sText}</span></div>
+  </div>`;
+});
+
+// ── CHART 10: Speed Distribution ──
+new Chart(document.getElementById('chartSpeedDist'), {
+  type: 'bar',
+  data: {
+    labels: ['Stopped\n(0–3 kn)', 'Slow\n(3–7 kn)', 'Normal\n(7–12 kn)', 'Fast\n(12–16 kn)', 'Very Fast\n(16+ kn)'],
+    datasets: [{
+      label: 'AIS Records',
+      data: [1101, 1310, 19719, 11065, 107],
+      backgroundColor: [COLORS.muted, COLORS.amber, COLORS.green, COLORS.blue, COLORS.red],
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(30,51,86,0.5)' }, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── CHART 11: AIS Source ──
+new Chart(document.getElementById('chartAISSource'), {
+  type: 'doughnut',
+  data: {
+    labels: ['SHIPBORNE', 'SAT', 'LAND'],
+    datasets: [{
+      data: [22000, 12000, 2564],
+      backgroundColor: [COLORS.blue, COLORS.gold, COLORS.green],
+      borderColor: [BORDERS.blue, BORDERS.gold, BORDERS.green],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ` ${c.label}: ~${c.parsed.toLocaleString()} records` } }
+    },
+    cutout: '55%'
+  }
+});
+
+// ── CHART 12: ETA Types ──
+new Chart(document.getElementById('chartETATypes'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Container', 'Chemical', 'Bulk Carrier', 'Chem+Oil', 'Gen Cargo', 'GC+Container', 'Tanker', 'Product', 'Other'],
+    datasets: [{
+      data: [113, 106, 98, 58, 47, 37, 34, 26, 121],
+      backgroundColor: [COLORS.blue, COLORS.purple, COLORS.green, COLORS.gold, COLORS.amber, COLORS.blue, COLORS.gold, COLORS.purple, COLORS.muted],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    cutout: '50%'
+  }
+});
+
+// ══════════════════════════════════
+// VESSEL TRACKING DATA
+// ══════════════════════════════════
+const VESSEL_TRACKING = {
+  aqualeader: {
+    name: 'Aqualeader', imo: '9592238', flag: 'LBR', type: 'Crude Oil Tanker', dwt: 115668,
+    actualArrival: '2026-02-11T12:14:08',
+    actualSailing: '2026-02-12T12:32:38',
+    actualPlace: 'Vancouver / Burnaby',
+    snapshots: [
+      {ts:'2026-02-07T06:00', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-12T22:03', dist:235.5, speed:1.7, load:'Partially Laden 5%'},
+      {ts:'2026-02-07T12:28', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T02:06', dist:219.4, speed:1.9, load:'Partially Laden 5%'},
+      {ts:'2026-02-07T18:35', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T07:31', dist:235.3, speed:2.1, load:'Partially Laden 5%'},
+      {ts:'2026-02-08T00:33', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T07:31', dist:221.9, speed:2.3, load:'Partially Laden 5%'},
+      {ts:'2026-02-08T12:35', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T07:29', dist:229.2, speed:2.3, load:'Partially Laden 5%'},
+      {ts:'2026-02-08T17:52', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T07:29', dist:219.3, speed:1.9, load:'Partially Laden 5%'},
+      {ts:'2026-02-08T23:44', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T14:16', dist:202.3, speed:10.0, load:'Partially Laden 5%'},
+      {ts:'2026-02-09T06:02', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T17:47', dist:183.6, speed:10.7, load:'Partially Laden 5%'},
+      {ts:'2026-02-09T12:05', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T19:01', dist:185.0, speed:11.4, load:'Partially Laden 5%'},
+      {ts:'2026-02-09T18:08', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T19:01', dist:133.8, speed:7.9, load:'Partially Laden 5%'},
+      {ts:'2026-02-10T00:09', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T19:16', dist:103.9, speed:8.2, load:'Partially Laden 5%'},
+      {ts:'2026-02-10T05:34', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T21:55', dist:83.1, speed:10.8, load:'Partially Laden 5%'},
+      {ts:'2026-02-10T12:21', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T22:05', dist:36.6, speed:11.1, load:'Partially Laden 5%'},
+      {ts:'2026-02-10T18:31', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T22:05', dist:13.3, speed:9.8, load:'Partially Laden 5%'},
+      {ts:'2026-02-11T00:30', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T00:00', dist:8.0, speed:9.2, load:'Partially Laden 5%'},
+      {ts:'2026-02-11T06:23', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T00:00', dist:2.6, speed:10.2, load:'Partially Laden 5%'},
+      {ts:'2026-02-11T12:25', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-14T02:48', dist:0.8, speed:0.0, load:'Partially Laden 5%'},
+    ]
+  },
+  starvega: {
+    name: 'Star Vega', imo: '9520895', flag: 'LBR', type: 'Bulk Carrier', dwt: 75000,
+    actualArrival: '2026-02-13T13:30:41',
+    actualSailing: '2026-02-16T14:27:04',
+    actualPlace: 'Vancouver',
+    snapshots: [
+      {ts:'2026-02-07T05:20', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T14:59', dist:413.5, speed:10.9, load:'Partially Laden 25%'},
+      {ts:'2026-02-07T12:27', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T13:54', dist:356.2, speed:11.2, load:'Partially Laden 25%'},
+      {ts:'2026-02-07T18:37', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T15:13', dist:314.8, speed:10.4, load:'Partially Laden 25%'},
+      {ts:'2026-02-08T00:34', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T14:34', dist:284.1, speed:11.0, load:'Partially Laden 25%'},
+      {ts:'2026-02-08T12:31', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T19:25', dist:254.0, speed:10.7, load:'Partially Laden 25%'},
+      {ts:'2026-02-08T17:49', aisEta:'2026-02-10T08:30', predictedEtb:'2026-02-14T18:18', dist:236.9, speed:10.0, load:'Partially Laden 25%'},
+      {ts:'2026-02-08T23:43', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T18:16', dist:185.0, speed:11.2, load:'Partially Laden 25%'},
+      {ts:'2026-02-09T06:03', aisEta:'2026-02-10T08:30', predictedEtb:'2026-02-14T18:48', dist:137.1, speed:12.0, load:'Partially Laden 25%'},
+      {ts:'2026-02-09T12:07', aisEta:'2026-02-10T08:30', predictedEtb:'2026-02-14T18:48', dist:83.1, speed:11.5, load:'Partially Laden 25%'},
+      {ts:'2026-02-09T18:11', aisEta:'2026-02-10T08:30', predictedEtb:'2026-02-14T18:48', dist:33.6, speed:11.5, load:'Partially Laden 25%'},
+      {ts:'2026-02-10T00:14', aisEta:'2026-02-10T06:30', predictedEtb:'2026-02-14T21:08', dist:4.0, speed:9.6, load:'Ballast'},
+      {ts:'2026-02-10T06:14', aisEta:'2026-02-10T06:30', predictedEtb:'2026-02-13T10:33', dist:1.1, speed:8.6, load:'Ballast'},
+      {ts:'2026-02-10T12:16', aisEta:'2026-02-10T06:30', predictedEtb:'2026-02-13T12:01', dist:1.6, speed:4.9, load:'Ballast'},
+    ]
+  },
+  clluzhou: {
+    name: 'CL Luzhou', imo: '9943580', flag: 'MHL', type: 'Bulk Carrier', dwt: 61256,
+    actualArrival: '2026-02-10T11:57:16',
+    actualSailing: '2026-02-11T10:45:05',
+    actualPlace: 'Vancouver',
+    snapshots: [
+      {ts:'2026-02-07T12:27', aisEta:'2026-02-10T14:00', predictedEtb:'2026-02-14T09:23', dist:347.1, speed:11.7, load:'Ballast'},
+      {ts:'2026-02-08T00:34', aisEta:'2026-02-10T14:00', predictedEtb:'2026-02-14T12:15', dist:277.9, speed:11.7, load:'Ballast'},
+      {ts:'2026-02-08T12:35', aisEta:'2026-02-10T08:00', predictedEtb:'2026-02-14T17:52', dist:251.6, speed:10.3, load:'Ballast'},
+      {ts:'2026-02-08T17:47', aisEta:'2026-02-10T08:00', predictedEtb:'2026-02-14T16:00', dist:230.3, speed:10.0, load:'Ballast'},
+      {ts:'2026-02-08T23:43', aisEta:'2026-02-10T08:00', predictedEtb:'2026-02-14T14:26', dist:180.0, speed:11.3, load:'Ballast'},
+      {ts:'2026-02-09T06:04', aisEta:'2026-02-10T08:00', predictedEtb:'2026-02-14T15:43', dist:131.1, speed:11.3, load:'Ballast'},
+      {ts:'2026-02-09T12:08', aisEta:'2026-02-10T08:00', predictedEtb:'2026-02-14T15:43', dist:74.8, speed:11.6, load:'Ballast'},
+      {ts:'2026-02-09T18:11', aisEta:'2026-02-10T06:00', predictedEtb:'2026-02-14T17:56', dist:30.3, speed:4.5, load:'Ballast'},
+      {ts:'2026-02-10T00:13', aisEta:'2026-02-10T06:00', predictedEtb:'2026-02-14T19:15', dist:6.1, speed:9.1, load:'Ballast'},
+      {ts:'2026-02-10T06:15', aisEta:'2026-02-10T06:00', predictedEtb:'2026-02-13T10:12', dist:5.3, speed:15.2, load:'Ballast'},
+      {ts:'2026-02-10T12:18', aisEta:'2026-02-10T06:00', predictedEtb:'2026-02-13T11:57', dist:2.0, speed:0.4, load:'Ballast'},
+    ]
+  },
+  clqingshui: {
+    name: 'CL Qingshui He', imo: '9880295', flag: 'LBR', type: 'Bulk Carrier', dwt: 80860,
+    actualArrival: '2026-02-07T08:20:00',
+    actualSailing: '2026-02-09T17:10:14',
+    actualPlace: 'Vancouver',
+    snapshots: [
+      {ts:'2026-02-07T06:10', aisEta:'2026-02-07T01:00', predictedEtb:'2026-02-11T07:30', dist:6.1, speed:12.8, load:'Ballast'},
+    ]
+  },
+  atlanticgem: {
+    name: 'Atlantic Gem', imo: '1041374', flag: 'LBR', type: 'Bulk Carrier', dwt: 82000,
+    actualArrival: '2026-02-08T11:56:40',
+    actualSailing: '2026-02-08T19:33:26',
+    actualPlace: 'Vancouver / Burnaby',
+    snapshots: [
+      {ts:'2026-02-07T06:10', aisEta:'2026-01-14T09:00', predictedEtb:'2026-02-10T15:31', dist:42.0, speed:5.7, load:'Ballast'},
+      {ts:'2026-02-07T12:35', aisEta:'2026-02-08T02:30', predictedEtb:'2026-02-10T15:04', dist:20.9, speed:6.9, load:'Ballast'},
+      {ts:'2026-02-07T18:36', aisEta:'2026-02-08T02:30', predictedEtb:'2026-02-10T18:10', dist:7.0, speed:4.8, load:'Ballast'},
+      {ts:'2026-02-08T00:38', aisEta:'2026-02-08T03:30', predictedEtb:'2026-02-10T18:10', dist:9.7, speed:5.7, load:'Ballast'},
+      {ts:'2026-02-08T12:37', aisEta:'2026-02-08T03:30', predictedEtb:'2026-02-11T01:38', dist:0.4, speed:0.1, load:'Ballast'},
+    ]
+  },
+  seaways: {
+    name: 'Seaways Yellowstone', imo: '3E5321', flag: 'PAN', type: 'Bulk Carrier', dwt: 75000,
+    actualArrival: '2026-02-27T17:23:30',
+    actualSailing: '2026-02-27T23:29:30',
+    actualPlace: 'Vancouver',
+    snapshots: [
+      {ts:'2026-02-22T07:35', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T08:37', dist:178.4, speed:12.5, load:'Ballast'},
+      {ts:'2026-02-22T13:22', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T07:06', dist:208.8, speed:11.4, load:'Ballast'},
+      {ts:'2026-02-22T19:43', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T07:38', dist:254.8, speed:11.8, load:'Ballast'},
+      {ts:'2026-02-23T01:48', aisEta:'2026-02-26T04:00', predictedEtb:'2026-02-27T04:25', dist:311.3, speed:9.1, load:'Ballast'},
+      {ts:'2026-02-23T07:47', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T14:09', dist:360.8, speed:10.4, load:'Ballast'},
+      {ts:'2026-02-23T13:31', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T13:21', dist:377.7, speed:9.5, load:'Ballast'},
+      {ts:'2026-02-23T19:40', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T15:17', dist:343.2, speed:10.2, load:'Ballast'},
+      {ts:'2026-02-24T01:35', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T15:17', dist:303.9, speed:10.5, load:'Ballast'},
+      {ts:'2026-02-24T13:31', aisEta:'2026-02-26T06:00', predictedEtb:'2026-03-02T15:17', dist:225.3, speed:13.2, load:'Ballast'},
+      {ts:'2026-02-24T19:18', aisEta:'2026-02-26T06:00', predictedEtb:'2026-03-02T15:17', dist:192.4, speed:14.5, load:'Ballast'},
+      {ts:'2026-02-25T01:57', aisEta:'2026-02-26T06:00', predictedEtb:'2026-03-02T15:17', dist:183.2, speed:14.5, load:'Ballast'},
+      {ts:'2026-02-25T07:42', aisEta:'2026-02-26T07:30', predictedEtb:'2026-03-02T07:49', dist:140.9, speed:14.8, load:'Ballast'},
+      {ts:'2026-02-25T14:08', aisEta:'2026-02-26T07:30', predictedEtb:'2026-03-02T07:58', dist:96.0, speed:14.6, load:'Ballast'},
+      {ts:'2026-02-25T20:08', aisEta:'2026-02-26T05:00', predictedEtb:'2026-03-01T05:02', dist:48.8, speed:14.6, load:'Ballast'},
+      {ts:'2026-02-26T02:12', aisEta:'2026-02-26T06:30', predictedEtb:'2026-03-01T05:50', dist:6.8, speed:14.4, load:'Ballast'},
+    ]
+  }
+};
+
+// Chart instances for the tracking tab
+let etaChart = null, distChart = null, speedChart = null;
+
+function parseDate(s) { return new Date(s.replace(' ', 'T')); }
+function fmtDate(d) {
+  return d.toLocaleDateString('en-CA', {month:'short', day:'numeric'}) + ' ' +
+    d.toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit', hour12:false});
+}
+function hoursDiff(a, b) { return (parseDate(b) - parseDate(a)) / 3600000; }
+function hoursToHM(h) {
+  const sign = h < 0 ? '-' : '+';
+  const ah = Math.abs(h);
+  return sign + Math.floor(ah) + 'h ' + Math.round((ah % 1) * 60) + 'm';
+}
+
+function accuracyPill(errH) {
+  const a = Math.abs(errH);
+  if (a < 2) return '<span class="pill pill-green">± &lt;2h</span>';
+  if (a < 6) return '<span class="pill pill-blue">± &lt;6h</span>';
+  if (a < 12) return '<span class="pill pill-amber">± &lt;12h</span>';
+  return '<span class="pill pill-red">± &gt;12h</span>';
+}
+
+function updateTracking() {
+  const key = document.getElementById('vesselSelect').value;
+  const v = VESSEL_TRACKING[key];
+
+  // Badge
+  document.getElementById('vesselBadge').textContent = v.imo + ' · ' + v.flag;
+  document.getElementById('tableVesselName').textContent = v.name;
+
+  const actualDt = parseDate(v.actualArrival);
+  const sailingDt = parseDate(v.actualSailing);
+  const stayH = (sailingDt - actualDt) / 3600000;
+
+  document.getElementById('actualArrivalDisplay').textContent = fmtDate(actualDt);
+  document.getElementById('actualSailingDisplay').textContent = fmtDate(sailingDt);
+  document.getElementById('portStayDisplay').textContent = Math.floor(stayH) + 'h ' + Math.round((stayH%1)*60) + 'm';
+
+  // Build snapshot data
+  const snaps = v.snapshots;
+  const errors = snaps.map(s => {
+    const pred = parseDate(s.aisEta);
+    return (pred - actualDt) / 3600000; // +ve = predicted later than actual
+  });
+  const absErrors = errors.map(e => Math.abs(e));
+  const avgErr = absErrors.reduce((a,b)=>a+b,0)/absErrors.length;
+  const minErr = Math.min(...absErrors);
+  const firstErr = absErrors[0] || 0;
+  const lastErr = absErrors[absErrors.length-1] || 0;
+
+  // KPIs
+  const kpiEl = document.getElementById('trackingKPIs');
+  kpiEl.innerHTML = `
+    <div class="kpi"><div class="kpi-label">Prediction Snapshots</div><div class="kpi-value kpi-accent">${snaps.length}</div><div class="kpi-sub">Across approach voyage</div></div>
+    <div class="kpi"><div class="kpi-label">Avg ETA Error</div><div class="kpi-value kpi-gold">${avgErr.toFixed(1)}h</div><div class="kpi-sub">Absolute mean error</div></div>
+    <div class="kpi"><div class="kpi-label">Best Prediction</div><div class="kpi-value kpi-green">${minErr.toFixed(1)}h</div><div class="kpi-sub">Closest single snapshot</div></div>
+    <div class="kpi"><div class="kpi-label">First Snapshot Error</div><div class="kpi-value ${firstErr>12?'kpi-red':firstErr>6?'kpi-gold':''}">${firstErr.toFixed(1)}h</div><div class="kpi-sub">From ${snaps[0]?.dist?.toFixed(0)} nm out</div></div>
+    <div class="kpi"><div class="kpi-label">Final Snapshot Error</div><div class="kpi-value ${lastErr>6?'kpi-amber':'kpi-green'}">${lastErr.toFixed(1)}h</div><div class="kpi-sub">From ${snaps[snaps.length-1]?.dist?.toFixed(1)} nm out</div></div>
+  `;
+
+  document.getElementById('snapshotCount').textContent = snaps.length + ' snapshots';
+
+  // Snapshot table
+  const tbody = document.getElementById('snapshotTableBody');
+  tbody.innerHTML = snaps.map((s,i) => {
+    const errH = errors[i];
+    const absErrH = absErrors[i];
+    return `<tr>
+      <td class="mono text-muted">${i+1}</td>
+      <td class="mono">${s.ts}</td>
+      <td class="mono" style="color:var(--accent)">${s.aisEta}</td>
+      <td class="mono text-muted">${s.predictedEtb.substring(0,16)}</td>
+      <td class="mono">${s.dist.toFixed(1)}</td>
+      <td class="mono">${s.speed}</td>
+      <td>${s.load}</td>
+      <td class="mono" style="color:${absErrH<2?'var(--green)':absErrH<6?'var(--accent)':absErrH<12?'var(--amber)':'var(--red)'}">${hoursToHM(errH)}</td>
+      <td>${accuracyPill(errH)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Chart 1: ETA Evolution ──
+  const tsLabels = snaps.map(s => s.ts.substring(5));
+  const etaValues = snaps.map(s => parseDate(s.aisEta).getTime());
+  const actualLine = snaps.map(() => actualDt.getTime());
+
+  if (etaChart) etaChart.destroy();
+  etaChart = new Chart(document.getElementById('chartETAEvolution'), {
+    type: 'line',
+    data: {
+      labels: tsLabels,
+      datasets: [
+        {
+          label: 'Predicted ETA (AIS)',
+          data: etaValues,
+          borderColor: '#00d4ff',
+          backgroundColor: 'rgba(0,212,255,0.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#00d4ff',
+        },
+        {
+          label: 'Actual Arrival',
+          data: actualLine,
+          borderColor: '#00e5a0',
+          borderDash: [8,4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = new Date(ctx.parsed.y);
+              return ctx.dataset.label + ': ' + d.toLocaleDateString('en-CA',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit',hour12:false});
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          grid: { color: 'rgba(30,51,86,0.5)' },
+          ticks: {
+            callback: v => {
+              const d = new Date(v);
+              return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+            },
+            maxTicksLimit: 6
+          }
+        },
+        x: { grid: { display: false }, ticks: { font:{size:10}, maxTicksLimit: 10 } }
+      }
+    }
+  });
+
+  // ── Chart 2: Distance vs Error ──
+  const distData = snaps.map((s,i) => ({ x: s.dist, y: absErrors[i] }));
+  if (distChart) distChart.destroy();
+  distChart = new Chart(document.getElementById('chartDistError'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Abs ETA Error (hrs)',
+        data: distData,
+        backgroundColor: snaps.map((s,i) => {
+          const a = absErrors[i];
+          return a<2?'rgba(0,229,160,0.8)':a<6?'rgba(0,212,255,0.8)':a<12?'rgba(255,179,71,0.8)':'rgba(255,77,106,0.8)';
+        }),
+        pointRadius: 7,
+        pointHoverRadius: 9,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `Dist: ${ctx.parsed.x.toFixed(1)} nm · Error: ${ctx.parsed.y.toFixed(1)}h` }}
+      },
+      scales: {
+        x: { grid:{ color:'rgba(30,51,86,0.5)' }, title:{ display:true, text:'Distance Remaining (nm)', color:'#8aa3c0' }, reverse: true },
+        y: { grid:{ color:'rgba(30,51,86,0.5)' }, title:{ display:true, text:'Abs ETA Error (hours)', color:'#8aa3c0' }, min:0 }
+      }
+    }
+  });
+
+  // ── Chart 3: Speed Profile ──
+  if (speedChart) speedChart.destroy();
+  speedChart = new Chart(document.getElementById('chartSpeedProfile'), {
+    type: 'bar',
+    data: {
+      labels: tsLabels,
+      datasets: [{
+        label: 'Speed (kn)',
+        data: snaps.map(s => s.speed),
+        backgroundColor: snaps.map(s => {
+          if (s.speed < 3) return 'rgba(74,96,128,0.7)';
+          if (s.speed < 7) return 'rgba(255,179,71,0.8)';
+          if (s.speed < 12) return 'rgba(0,212,255,0.8)';
+          if (s.speed < 16) return 'rgba(0,229,160,0.8)';
+          return 'rgba(255,77,106,0.8)';
+        }),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend:{ display:false } },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, min:0, max:20, title:{display:true,text:'Speed (knots)',color:'#8aa3c0'} },
+        x: { grid:{display:false}, ticks:{font:{size:10}, maxTicksLimit:10} }
+      }
+    }
+  });
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => { updateTracking(); });
+setTimeout(() => { updateTracking(); }, 200);
+
+</script>
+</body>
+</html>
