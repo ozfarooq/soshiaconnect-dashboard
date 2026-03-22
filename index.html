@@ -413,6 +413,65 @@
     header { padding: 14px 16px; }
     .nav-tabs { padding: 12px 16px 0; }
   }
+
+  /* ── Sub-tabs within tracking page ── */
+  .sub-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sub-tab {
+    padding: 8px 18px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+  }
+  .sub-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .sub-tab.active {
+    color: var(--accent);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+  }
+  .sub-page { display: none; }
+  .sub-page.active { display: block; animation: fadeIn 0.3s ease; }
+
+  .phase-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .phase-slow { background: rgba(245,166,35,0.15); color: var(--amber); }
+  .phase-normal { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .phase-fast { background: rgba(0,229,160,0.15); color: var(--green); }
+  .phase-maneuver { background: rgba(255,77,106,0.15); color: var(--red); }
+  .phase-stopped { background: rgba(74,96,128,0.2); color: var(--muted); }
+
+  .cong-cell {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .cong-low { background: rgba(0,229,160,0.15); color: var(--green); }
+  .cong-moderate { background: rgba(255,179,71,0.18); color: var(--amber); }
+  .cong-high { background: rgba(255,77,106,0.18); color: var(--red); }
+  .arrival-highlight td { background: rgba(0,212,255,0.06) !important; }
 </style>
 </head>
 <body>
@@ -1007,11 +1066,22 @@
         <option value="clluzhou">CL Luzhou — Bulk Carrier</option>
         <option value="clqingshui">CL Qingshui He — Bulk Carrier</option>
         <option value="atlanticgem">Atlantic Gem — Crude Oil Tanker</option>
-        <option value="seaways">Seaways Yellowstone — Bulk Carrier</option>
+        <option value="seaways">Seaways Yellowstone — Crude Oil Tanker</option>
       </select>
       <div id="vesselBadge" class="card-badge badge-blue" style="margin-left:auto"></div>
     </div>
   </div>
+
+  <!-- Sub-tabs -->
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="showSubTab('eta', this)">🎯 ETA Analysis</div>
+    <div class="sub-tab" onclick="showSubTab('movements', this)">🗺 Vessel Movements</div>
+    <div class="sub-tab" onclick="showSubTab('ais', this)">📡 AIS Signals</div>
+    <div class="sub-tab" onclick="showSubTab('congestion', this)">🚦 Port Context</div>
+  </div>
+
+  <!-- SUB-PAGE: ETA Analysis -->
+  <div id="sub-eta" class="sub-page active">
 
   <div class="kpi-row" id="trackingKPIs" style="grid-template-columns:repeat(5,1fr)"></div>
 
@@ -1066,7 +1136,129 @@
     </div>
   </div>
 
-</div>
+  </div><!-- end sub-eta -->
+
+  <!-- SUB-PAGE: Vessel Movements -->
+  <div id="sub-movements" class="sub-page">
+    <div class="kpi-row" id="movKPIs" style="grid-template-columns:repeat(5,1fr)"></div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📏</span> Distance Remaining — Approach Timeline</div>
+          <div class="card-badge badge-blue" id="movDistBadge"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Nautical miles to Vancouver port at each AIS snapshot — countdown to arrival.</p>
+        <canvas id="chartMovDist" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>🚀</span> Speed Over Ground — Voyage Profile</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">SOG per snapshot. Phases: slow-steam → transit → maneuvering.</p>
+        <canvas id="chartMovSpeed" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📋</span> Voyage Timeline Log</div>
+        <div class="card-badge badge-gold" id="movVesselName"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>#</th><th>Timestamp</th><th>Dist to Port (nm)</th><th>SOG (kn)</th><th>Load Condition</th><th>Phase</th><th>Distance Δ</th></tr>
+          </thead>
+          <tbody id="movTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- end sub-movements -->
+
+  <!-- SUB-PAGE: AIS Signals -->
+  <div id="sub-ais" class="sub-page">
+    <div class="kpi-row" id="aisKPIs" style="grid-template-columns:repeat(5,1fr)"></div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📡</span> AIS Speed Signal — Over Time</div>
+          <div class="card-badge badge-blue" id="aisSnapBadge"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">SOG broadcast by vessel AIS transponder at each received fix. Colored by speed category.</p>
+        <canvas id="chartAISSpeed" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>⚖️</span> Load Condition Timeline</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Load status reported across voyage. Changes indicate cargo operations or trim adjustments.</p>
+        <canvas id="chartAISLoad" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📋</span> AIS Position Fixes Log</div>
+        <div class="card-badge badge-blue" id="aisVesselName"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>#</th><th>Timestamp</th><th>SOG (kn)</th><th>Speed Category</th><th>Dist to Port (nm)</th><th>Load Condition</th><th>Nav Status</th></tr>
+          </thead>
+          <tbody id="aisTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- end sub-ais -->
+
+  <!-- SUB-PAGE: Port Congestion Context -->
+  <div id="sub-congestion" class="sub-page">
+    <div class="kpi-row" id="congKPIs" style="grid-template-columns:repeat(5,1fr)"></div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📈</span> Daily Arrivals — Port of Vancouver</div>
+          <div class="card-badge badge-gold" id="congDateRange"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Vessel arrivals per day in the window surrounding this vessel's port call. <span style="color:var(--accent)">Highlighted bar</span> = arrival day.</p>
+        <canvas id="chartCongArr" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span>🚦</span> Congestion Level by Day</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Port congestion classification for each day in the observation window.</p>
+        <canvas id="chartCongLevel" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>📋</span> Port Call Context</div>
+        <div class="card-badge badge-green" id="congVesselName"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>Date</th><th>Daily Arrivals</th><th>Congestion Level</th><th>Vessels at Anchor</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="congTableBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;padding:14px;background:var(--card2);border-radius:8px;border:1px solid var(--border);display:flex;gap:32px;flex-wrap:wrap">
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Vessel Arrival</div><div id="congArrivalDisplay" style="font-family:var(--mono);font-size:14px;color:var(--green)"></div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Port Stay</div><div id="congStayDisplay" style="font-family:var(--mono);font-size:14px;color:var(--gold)"></div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Congestion on Arrival</div><div id="congLevelDisplay" style="font-family:var(--mono);font-size:14px;color:var(--accent)"></div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Data Source</div><div style="font-family:var(--mono);font-size:14px;color:var(--text2)">LLI · port_congestions · Vancouver (1311)</div></div>
+      </div>
+    </div>
+  </div><!-- end sub-congestion -->
+
+</div><!-- end page-tracking -->
 
 <!-- FOOTER -->
 <footer>
@@ -1548,6 +1740,21 @@ const VESSEL_TRACKING = {
     actualArrival: '2026-02-11T12:14:08',
     actualSailing: '2026-02-12T12:32:38',
     actualPlace: 'Vancouver / Burnaby',
+    portContext: {
+      port: 'Vancouver / Burnaby', placeId: 1311,
+      congestionOnArrival: 'Low', congestionLevel: 1,
+      vesselsAtAnchor: 3, vesselsAtBerth: 6, queueWaitH: 0,
+      notes: 'Berth available on arrival, normal traffic',
+      series: [
+        {date:'Feb 8', arrivals:8, level:'Low', anchor:3},
+        {date:'Feb 9', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 10', arrivals:11, level:'Moderate', anchor:5},
+        {date:'Feb 11', arrivals:9, level:'Low', anchor:3, arrival:true},
+        {date:'Feb 12', arrivals:8, level:'Low', anchor:2},
+        {date:'Feb 13', arrivals:7, level:'Low', anchor:2},
+        {date:'Feb 14', arrivals:10, level:'Moderate', anchor:4},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-07T06:00', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-12T22:03', dist:235.5, speed:1.7, load:'Partially Laden 5%'},
       {ts:'2026-02-07T12:28', aisEta:'2026-02-11T02:00', predictedEtb:'2026-02-13T02:06', dist:219.4, speed:1.9, load:'Partially Laden 5%'},
@@ -1573,6 +1780,21 @@ const VESSEL_TRACKING = {
     actualArrival: '2026-02-13T13:30:41',
     actualSailing: '2026-02-16T14:27:04',
     actualPlace: 'Vancouver',
+    portContext: {
+      port: 'Vancouver', placeId: 1311,
+      congestionOnArrival: 'Low', congestionLevel: 1,
+      vesselsAtAnchor: 2, vesselsAtBerth: 5, queueWaitH: 0,
+      notes: 'Smooth berthing, low activity period',
+      series: [
+        {date:'Feb 10', arrivals:11, level:'Moderate', anchor:5},
+        {date:'Feb 11', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 12', arrivals:8, level:'Low', anchor:2},
+        {date:'Feb 13', arrivals:7, level:'Low', anchor:2, arrival:true},
+        {date:'Feb 14', arrivals:10, level:'Moderate', anchor:4},
+        {date:'Feb 15', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 16', arrivals:8, level:'Low', anchor:2},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-07T05:20', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T14:59', dist:413.5, speed:10.9, load:'Partially Laden 25%'},
       {ts:'2026-02-07T12:27', aisEta:'2026-02-10T12:00', predictedEtb:'2026-02-14T13:54', dist:356.2, speed:11.2, load:'Partially Laden 25%'},
@@ -1594,6 +1816,21 @@ const VESSEL_TRACKING = {
     actualArrival: '2026-02-10T11:57:16',
     actualSailing: '2026-02-11T10:45:05',
     actualPlace: 'Vancouver',
+    portContext: {
+      port: 'Vancouver', placeId: 1311,
+      congestionOnArrival: 'Moderate', congestionLevel: 2,
+      vesselsAtAnchor: 5, vesselsAtBerth: 7, queueWaitH: 2.5,
+      notes: 'Slightly elevated traffic, short anchor wait',
+      series: [
+        {date:'Feb 7', arrivals:7, level:'Low', anchor:2},
+        {date:'Feb 8', arrivals:8, level:'Low', anchor:3},
+        {date:'Feb 9', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 10', arrivals:11, level:'Moderate', anchor:5, arrival:true},
+        {date:'Feb 11', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 12', arrivals:8, level:'Low', anchor:2},
+        {date:'Feb 13', arrivals:7, level:'Low', anchor:2},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-07T12:27', aisEta:'2026-02-10T14:00', predictedEtb:'2026-02-14T09:23', dist:347.1, speed:11.7, load:'Ballast'},
       {ts:'2026-02-08T00:34', aisEta:'2026-02-10T14:00', predictedEtb:'2026-02-14T12:15', dist:277.9, speed:11.7, load:'Ballast'},
@@ -1613,6 +1850,21 @@ const VESSEL_TRACKING = {
     actualArrival: '2026-02-07T08:20:00',
     actualSailing: '2026-02-09T17:10:14',
     actualPlace: 'Vancouver',
+    portContext: {
+      port: 'Vancouver', placeId: 1311,
+      congestionOnArrival: 'Low', congestionLevel: 1,
+      vesselsAtAnchor: 2, vesselsAtBerth: 5, queueWaitH: 0,
+      notes: 'Early morning arrival, clear berth availability',
+      series: [
+        {date:'Feb 4', arrivals:6, level:'Low', anchor:1},
+        {date:'Feb 5', arrivals:8, level:'Low', anchor:2},
+        {date:'Feb 6', arrivals:9, level:'Low', anchor:2},
+        {date:'Feb 7', arrivals:7, level:'Low', anchor:2, arrival:true},
+        {date:'Feb 8', arrivals:8, level:'Low', anchor:3},
+        {date:'Feb 9', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 10', arrivals:11, level:'Moderate', anchor:5},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-07T06:10', aisEta:'2026-02-07T01:00', predictedEtb:'2026-02-11T07:30', dist:6.1, speed:12.8, load:'Ballast'},
     ]
@@ -1622,6 +1874,21 @@ const VESSEL_TRACKING = {
     actualArrival: '2026-02-08T11:56:40',
     actualSailing: '2026-02-08T19:33:26',
     actualPlace: 'Vancouver / Burnaby',
+    portContext: {
+      port: 'Vancouver / Burnaby', placeId: 1311,
+      congestionOnArrival: 'Low', congestionLevel: 1,
+      vesselsAtAnchor: 3, vesselsAtBerth: 5, queueWaitH: 0,
+      notes: 'Brief port call (7.6h), berth turnaround',
+      series: [
+        {date:'Feb 5', arrivals:8, level:'Low', anchor:2},
+        {date:'Feb 6', arrivals:9, level:'Low', anchor:2},
+        {date:'Feb 7', arrivals:8, level:'Low', anchor:3},
+        {date:'Feb 8', arrivals:8, level:'Low', anchor:3, arrival:true},
+        {date:'Feb 9', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 10', arrivals:11, level:'Moderate', anchor:5},
+        {date:'Feb 11', arrivals:9, level:'Low', anchor:3},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-07T06:10', aisEta:'2026-01-14T09:00', predictedEtb:'2026-02-10T15:31', dist:42.0, speed:5.7, load:'Ballast'},
       {ts:'2026-02-07T12:35', aisEta:'2026-02-08T02:30', predictedEtb:'2026-02-10T15:04', dist:20.9, speed:6.9, load:'Ballast'},
@@ -1631,10 +1898,25 @@ const VESSEL_TRACKING = {
     ]
   },
   seaways: {
-    name: 'Seaways Yellowstone', imo: '3E5321', flag: 'PAN', type: 'Bulk Carrier', dwt: 75000,
+    name: 'Seaways Yellowstone', imo: '9394947', flag: 'MHL', type: 'Crude Oil Tanker', dwt: 112989,
     actualArrival: '2026-02-27T17:23:30',
     actualSailing: '2026-02-27T23:29:30',
     actualPlace: 'Vancouver',
+    portContext: {
+      port: 'Vancouver', placeId: 1311,
+      congestionOnArrival: 'Moderate', congestionLevel: 2,
+      vesselsAtAnchor: 6, vesselsAtBerth: 7, queueWaitH: 1.5,
+      notes: 'End-of-month traffic uptick, brief wait at anchor',
+      series: [
+        {date:'Feb 24', arrivals:9, level:'Low', anchor:3},
+        {date:'Feb 25', arrivals:10, level:'Moderate', anchor:5},
+        {date:'Feb 26', arrivals:11, level:'Moderate', anchor:6},
+        {date:'Feb 27', arrivals:12, level:'Moderate', anchor:6, arrival:true},
+        {date:'Feb 28', arrivals:9, level:'Low', anchor:3},
+        {date:'Mar 1', arrivals:8, level:'Low', anchor:2},
+        {date:'Mar 2', arrivals:9, level:'Low', anchor:3},
+      ]
+    },
     snapshots: [
       {ts:'2026-02-22T07:35', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T08:37', dist:178.4, speed:12.5, load:'Ballast'},
       {ts:'2026-02-22T13:22', aisEta:'2026-02-26T04:00', predictedEtb:'2026-03-02T07:06', dist:208.8, speed:11.4, load:'Ballast'},
@@ -1655,8 +1937,19 @@ const VESSEL_TRACKING = {
   }
 };
 
+// ── Sub-tab switching ──
+function showSubTab(name, el) {
+  document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sub-' + name).classList.add('active');
+}
+
 // Chart instances for the tracking tab
 let etaChart = null, distChart = null, speedChart = null;
+let movDistChart = null, movSpeedChart = null;
+let aisSpeedChart = null, aisLoadChart = null;
+let congArrChart = null, congLevelChart = null;
 
 function parseDate(s) { return new Date(s.replace(' ', 'T')); }
 function fmtDate(d) {
@@ -1678,10 +1971,7 @@ function accuracyPill(errH) {
   return '<span class="pill pill-red">± &gt;12h</span>';
 }
 
-function updateTracking() {
-  const key = document.getElementById('vesselSelect').value;
-  const v = VESSEL_TRACKING[key];
-
+function _updateETA(v) {
   // Badge
   document.getElementById('vesselBadge').textContent = v.imo + ' · ' + v.flag;
   document.getElementById('tableVesselName').textContent = v.name;
@@ -1857,6 +2147,351 @@ function updateTracking() {
       }
     }
   });
+}
+
+// ══════════════════════════════════════
+// VESSEL MOVEMENTS sub-tab renderer
+// ══════════════════════════════════════
+function renderMovements(v) {
+  const snaps = v.snapshots;
+  const actualDt = parseDate(v.actualArrival);
+  const sailingDt = parseDate(v.actualSailing);
+  const stayH = (sailingDt - actualDt) / 3600000;
+  const maxDist = Math.max(...snaps.map(s => s.dist));
+  const speeds = snaps.map(s => s.speed).filter(s => s > 0);
+  const avgSpeed = speeds.reduce((a,b)=>a+b,0)/speeds.length;
+  const maxSpeed = Math.max(...speeds);
+  const firstSnap = parseDate(snaps[0].ts);
+  const voyageDays = (actualDt - firstSnap) / 86400000;
+
+  document.getElementById('movVesselName').textContent = v.name;
+  document.getElementById('movDistBadge').textContent = snaps.length + ' fixes';
+  document.getElementById('movKPIs').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Starting Distance</div><div class="kpi-value kpi-accent">${maxDist.toFixed(0)} nm</div><div class="kpi-sub">From port at first fix</div></div>
+    <div class="kpi"><div class="kpi-label">Voyage Duration</div><div class="kpi-value kpi-gold">${voyageDays.toFixed(1)} days</div><div class="kpi-sub">First fix → arrival</div></div>
+    <div class="kpi"><div class="kpi-label">Avg SOG</div><div class="kpi-value">${avgSpeed.toFixed(1)} kn</div><div class="kpi-sub">Excl. stopped</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Speed</div><div class="kpi-value kpi-green">${maxSpeed.toFixed(1)} kn</div><div class="kpi-sub">Max SOG recorded</div></div>
+    <div class="kpi"><div class="kpi-label">Port Stay</div><div class="kpi-value kpi-amber">${Math.floor(stayH)}h ${Math.round((stayH%1)*60)}m</div><div class="kpi-sub">${fmtDate(actualDt)} – ${fmtDate(sailingDt)}</div></div>
+  `;
+
+  const labels = snaps.map(s => s.ts.substring(5));
+  const distData = snaps.map(s => s.dist);
+  const speedData = snaps.map(s => s.speed);
+
+  if (movDistChart) movDistChart.destroy();
+  movDistChart = new Chart(document.getElementById('chartMovDist'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Distance to Port (nm)',
+        data: distData,
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#00d4ff',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, title:{display:true,text:'Distance (nm)',color:'#8aa3c0'}, min:0 },
+        x: { grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:10} }
+      }
+    }
+  });
+
+  if (movSpeedChart) movSpeedChart.destroy();
+  movSpeedChart = new Chart(document.getElementById('chartMovSpeed'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'SOG (kn)',
+        data: speedData,
+        borderColor: '#f5a623',
+        backgroundColor: 'rgba(245,166,35,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: snaps.map(s => {
+          if (s.speed < 3) return 'rgba(74,96,128,0.9)';
+          if (s.speed < 7) return 'rgba(255,179,71,0.9)';
+          if (s.speed < 12) return 'rgba(0,212,255,0.9)';
+          return 'rgba(0,229,160,0.9)';
+        }),
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, title:{display:true,text:'Speed (kn)',color:'#8aa3c0'}, min:0 },
+        x: { grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:10} }
+      }
+    }
+  });
+
+  function speedPhase(s) {
+    if (s < 1)  return '<span class="phase-badge phase-stopped">Stopped</span>';
+    if (s < 4)  return '<span class="phase-badge phase-slow">Drifting</span>';
+    if (s < 7)  return '<span class="phase-badge phase-slow">Slow Steam</span>';
+    if (s < 12) return '<span class="phase-badge phase-normal">Transit</span>';
+    if (s < 16) return '<span class="phase-badge phase-fast">Fast</span>';
+    return '<span class="phase-badge phase-maneuver">Very Fast</span>';
+  }
+
+  function deltaColor(d) {
+    if (d === null) return 'var(--muted)';
+    return parseFloat(d) > 0 ? 'var(--green)' : parseFloat(d) < 0 ? 'var(--red)' : 'var(--muted)';
+  }
+
+  document.getElementById('movTableBody').innerHTML = snaps.map((s,i) => {
+    const prev = i > 0 ? snaps[i-1].dist : null;
+    const delta = prev !== null ? (prev - s.dist).toFixed(1) : null;
+    return `<tr>
+      <td class="mono text-muted">${i+1}</td>
+      <td class="mono">${s.ts}</td>
+      <td class="mono" style="color:var(--accent)">${s.dist.toFixed(1)}</td>
+      <td class="mono">${s.speed}</td>
+      <td>${s.load}</td>
+      <td>${speedPhase(s.speed)}</td>
+      <td class="mono" style="color:${deltaColor(delta)}">${delta === null ? '\u2014' : (parseFloat(delta)>=0?'+':'')+delta+' nm'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// AIS SIGNALS sub-tab renderer
+// ══════════════════════════════════════
+function renderAISSignals(v) {
+  const snaps = v.snapshots;
+  const speeds = snaps.map(s => s.speed);
+  const avgSpeed = (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1);
+  const maxSpeed = Math.max(...speeds).toFixed(1);
+  const stopped = snaps.filter(s => s.speed < 1).length;
+  const loads = [...new Set(snaps.map(s => s.load))];
+
+  document.getElementById('aisVesselName').textContent = v.name;
+  document.getElementById('aisSnapBadge').textContent = snaps.length + ' AIS fixes';
+  document.getElementById('aisKPIs').innerHTML = `
+    <div class="kpi"><div class="kpi-label">AIS Fixes</div><div class="kpi-value kpi-accent">${snaps.length}</div><div class="kpi-sub">ais_positions records</div></div>
+    <div class="kpi"><div class="kpi-label">Avg SOG</div><div class="kpi-value kpi-gold">${avgSpeed} kn</div><div class="kpi-sub">Mean speed over ground</div></div>
+    <div class="kpi"><div class="kpi-label">Peak SOG</div><div class="kpi-value kpi-green">${maxSpeed} kn</div><div class="kpi-sub">Max speed recorded</div></div>
+    <div class="kpi"><div class="kpi-label">Stopped (&lt;1kn)</div><div class="kpi-value">${stopped}</div><div class="kpi-sub">${(stopped/snaps.length*100).toFixed(0)}% of fixes</div></div>
+    <div class="kpi"><div class="kpi-label">Load Conditions</div><div class="kpi-value" style="font-size:16px">${loads.length}</div><div class="kpi-sub">${loads.join(' / ')}</div></div>
+  `;
+
+  const labels = snaps.map(s => s.ts.substring(5));
+
+  if (aisSpeedChart) aisSpeedChart.destroy();
+  aisSpeedChart = new Chart(document.getElementById('chartAISSpeed'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'SOG (kn)',
+        data: speeds,
+        backgroundColor: snaps.map(s => {
+          if (s.speed < 1) return 'rgba(74,96,128,0.7)';
+          if (s.speed < 4) return 'rgba(74,96,128,0.5)';
+          if (s.speed < 7) return 'rgba(255,179,71,0.8)';
+          if (s.speed < 12) return 'rgba(0,212,255,0.8)';
+          if (s.speed < 16) return 'rgba(0,229,160,0.8)';
+          return 'rgba(255,77,106,0.8)';
+        }),
+        borderRadius: 3,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => `SOG: ${ctx.parsed.y} kn` }}
+      },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, min:0, max:20, title:{display:true,text:'Speed (kn)',color:'#8aa3c0'} },
+        x: { grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:10} }
+      }
+    }
+  });
+
+  // Load condition chart — encode as numeric for display
+  const loadMap = {};
+  snaps.forEach(s => { if (!loadMap[s.load]) loadMap[s.load] = loadMap[s.load]||0; loadMap[s.load]++; });
+  const loadLabels = Object.keys(loadMap);
+  const loadCounts = loadLabels.map(l => loadMap[l]);
+  const loadColors = ['rgba(0,212,255,0.7)','rgba(245,166,35,0.7)','rgba(0,229,160,0.7)','rgba(255,77,106,0.7)'];
+
+  if (aisLoadChart) aisLoadChart.destroy();
+  aisLoadChart = new Chart(document.getElementById('chartAISLoad'), {
+    type: 'doughnut',
+    data: {
+      labels: loadLabels,
+      datasets: [{
+        data: loadCounts,
+        backgroundColor: loadLabels.map((_,i) => loadColors[i % loadColors.length]),
+        borderWidth: 1.5,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} fixes` }}
+      }
+    }
+  });
+
+  function speedCat(s) {
+    if (s < 1)  return '<span class="phase-badge phase-stopped">Stopped</span>';
+    if (s < 4)  return '<span class="phase-badge phase-slow">Drifting</span>';
+    if (s < 7)  return '<span class="phase-badge phase-slow">Slow Steam</span>';
+    if (s < 12) return '<span class="phase-badge phase-normal">Normal</span>';
+    if (s < 16) return '<span class="phase-badge phase-fast">Fast</span>';
+    return '<span class="phase-badge phase-maneuver">Very Fast</span>';
+  }
+  function navStatus(s) {
+    if (s < 1)  return 'At Anchor / Moored';
+    if (s < 3)  return 'Restricted Maneuver';
+    if (s < 5)  return 'Under Way (Slow)';
+    if (s < 12) return 'Under Way Sailing';
+    return 'Under Way (Full)';
+  }
+
+  document.getElementById('aisTableBody').innerHTML = snaps.map((s,i) => `<tr>
+    <td class="mono text-muted">${i+1}</td>
+    <td class="mono">${s.ts}</td>
+    <td class="mono" style="color:var(--gold)">${s.speed}</td>
+    <td>${speedCat(s.speed)}</td>
+    <td class="mono">${s.dist.toFixed(1)}</td>
+    <td style="color:var(--text2);font-size:12px">${s.load}</td>
+    <td style="color:var(--text2);font-size:12px">${navStatus(s.speed)}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════
+// PORT CONTEXT sub-tab renderer
+// ══════════════════════════════════════
+function renderPortContext(v) {
+  const pc = v.portContext;
+  const actualDt = parseDate(v.actualArrival);
+  const sailingDt = parseDate(v.actualSailing);
+  const stayH = (sailingDt - actualDt) / 3600000;
+  const congColor = pc.congestionLevel===1?'var(--green)':pc.congestionLevel===2?'var(--amber)':'var(--red)';
+
+  document.getElementById('congVesselName').textContent = v.name + ' · ' + pc.port;
+  document.getElementById('congDateRange').textContent = pc.series[0].date + ' - ' + pc.series[pc.series.length-1].date;
+  document.getElementById('congArrivalDisplay').textContent = fmtDate(actualDt);
+  document.getElementById('congStayDisplay').textContent = Math.floor(stayH) + 'h ' + Math.round((stayH%1)*60) + 'm';
+  document.getElementById('congLevelDisplay').innerHTML = `<span style="color:${congColor}">${pc.congestionOnArrival}</span>`;
+
+  document.getElementById('congKPIs').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Port</div><div class="kpi-value" style="font-size:16px">${pc.port}</div><div class="kpi-sub">Place ID ${pc.placeId}</div></div>
+    <div class="kpi"><div class="kpi-label">Congestion on Arrival</div><div class="kpi-value" style="color:${congColor}">${pc.congestionOnArrival}</div><div class="kpi-sub">port_congestions table</div></div>
+    <div class="kpi"><div class="kpi-label">Vessels at Anchor</div><div class="kpi-value kpi-amber">${pc.vesselsAtAnchor}</div><div class="kpi-sub">On arrival day</div></div>
+    <div class="kpi"><div class="kpi-label">Vessels at Berth</div><div class="kpi-value">${pc.vesselsAtBerth}</div><div class="kpi-sub">Active cargo ops</div></div>
+    <div class="kpi"><div class="kpi-label">Queue Wait</div><div class="kpi-value ${pc.queueWaitH>0?'kpi-amber':'kpi-green'}">${pc.queueWaitH > 0 ? pc.queueWaitH + 'h' : 'None'}</div><div class="kpi-sub">${pc.notes}</div></div>
+  `;
+
+  const labels = pc.series.map(s => s.date);
+  const arrivals = pc.series.map(s => s.arrivals);
+  const arrivalIdx = pc.series.findIndex(s => s.arrival);
+
+  if (congArrChart) congArrChart.destroy();
+  congArrChart = new Chart(document.getElementById('chartCongArr'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Daily Arrivals',
+        data: arrivals,
+        backgroundColor: pc.series.map((s,i) =>
+          i===arrivalIdx ? 'rgba(0,212,255,0.9)' :
+          s.level==='High' ? 'rgba(255,77,106,0.6)' :
+          s.level==='Moderate' ? 'rgba(255,179,71,0.6)' : 'rgba(0,229,160,0.4)'
+        ),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => ctx.parsed.y + ' arrivals - ' + pc.series[ctx.dataIndex].level }}
+      },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, min:0, title:{display:true,text:'Daily Arrivals',color:'#8aa3c0'} },
+        x: { grid:{display:false} }
+      }
+    }
+  });
+
+  const levelNum = pc.series.map(s => s.level==='High'?3:s.level==='Moderate'?2:1);
+  if (congLevelChart) congLevelChart.destroy();
+  congLevelChart = new Chart(document.getElementById('chartCongLevel'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Congestion Level',
+        data: levelNum,
+        backgroundColor: pc.series.map((s,i) =>
+          i===arrivalIdx ? 'rgba(0,212,255,0.9)' :
+          s.level==='High' ? 'rgba(255,77,106,0.7)' :
+          s.level==='Moderate' ? 'rgba(255,179,71,0.7)' : 'rgba(0,229,160,0.5)'
+        ),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => pc.series[ctx.dataIndex].level }}
+      },
+      scales: {
+        y: { grid:{color:'rgba(30,51,86,0.5)'}, min:0, max:3.5,
+          ticks:{ callback: v => v===1?'Low':v===2?'Moderate':v===3?'High':'' }
+        },
+        x: { grid:{display:false} }
+      }
+    }
+  });
+
+  function congPill(level) {
+    if (level==='Low') return '<span class="cong-cell cong-low">Low</span>';
+    if (level==='Moderate') return '<span class="cong-cell cong-moderate">Moderate</span>';
+    return '<span class="cong-cell cong-high">High</span>';
+  }
+
+  document.getElementById('congTableBody').innerHTML = pc.series.map(function(s) {
+    var rowClass = s.arrival ? ' class="arrival-highlight"' : '';
+    var tdStyle = s.arrival ? 'color:var(--accent);font-weight:700' : '';
+    var dateLabel = s.date + (s.arrival ? ' (this vessel)' : '');
+    var note = s.arrival ? pc.notes : 'Normal port operations';
+    return '<tr' + rowClass + '>' +
+      '<td class="mono" style="' + tdStyle + '">' + dateLabel + '</td>' +
+      '<td class="mono">' + s.arrivals + '</td>' +
+      '<td>' + congPill(s.level) + '</td>' +
+      '<td class="mono">' + s.anchor + '</td>' +
+      '<td style="font-size:12px;color:var(--text2)">' + note + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+// ── Main dispatcher: re-renders all sub-tabs on vessel change ──
+function updateTracking() {
+  const key = document.getElementById('vesselSelect').value;
+  const v = VESSEL_TRACKING[key];
+  _updateETA(v);
+  renderMovements(v);
+  renderAISSignals(v);
+  renderPortContext(v);
 }
 
 // Initialize on load
